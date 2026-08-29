@@ -6,7 +6,7 @@
 
 ## 在线体验
 
-- 演示站:部署于 Zeabur(见仓库 About 栏链接)
+- 演示站:**https://jingcheng-demo.zeabur.app**(全栈部署,前端与 `/api/*` 同源同端口)
 - 本地体验:**双击 `index.html` 即可**(`file://` 可直接演示,断网兜底是刻意的选型);或跑全栈:
 
 ```bash
