@@ -1,0 +1,833 @@
+{
+ "version": 1,
+ "scenes": {
+  "formation": {
+   "params": [
+    "预充倍率",
+    "化成温度",
+    "预充切换电压",
+    "恒压截止电流",
+    "高温老化时长"
+   ],
+   "sigma_f": 1.0,
+   "cards": {
+    "sei": {
+     "dims": 5,
+     "confidence": 0.8,
+     "sigma_f": 1.0,
+     "mean_terms": [
+      {
+       "kind": "linear",
+       "dim": 0,
+       "a": -0.8,
+       "lo": 0.02,
+       "span": 0.48
+      },
+      {
+       "kind": "gauss",
+       "dim": 0,
+       "a": 0.8,
+       "mu": 0.05,
+       "w": 0.04
+      }
+     ],
+     "bounds": [
+      [
+       0.02,
+       0.12
+      ],
+      [
+       25.0,
+       55.0
+      ],
+      [
+       3.0,
+       3.45
+      ],
+      [
+       0.02,
+       0.1
+      ],
+      [
+       6.0,
+       48.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [],
+     "ls_scale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "预充倍率 搜索范围收到 0.02~0.12C",
+      "预充倍率 越小越好(线性先验)",
+      "预充倍率 在 0.05C 附近加分(±0.04)"
+     ],
+     "parked": [],
+     "card": {
+      "id": "sei",
+      "kind": "good",
+      "text": "首充慢一点，SEI长得匀",
+      "why": "低倍率成膜致密 → 内阻首效双优",
+      "utterance": "首充慢一点，SEI长得匀",
+      "rationale": "低电流密度下 SEI 成核速率低、膜层致密均匀，不可逆锂损失少 → FCE 与 DCR 同时改善",
+      "speaks_to": [],
+      "external": false,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "预充倍率"
+      ],
+      "hard_cuts": 0
+     }
+    },
+    "cold": {
+     "dims": 5,
+     "confidence": 0.9,
+     "sigma_f": 1.0,
+     "mean_terms": [
+      {
+       "kind": "region",
+       "a": -3.0,
+       "gates": [
+        {
+         "g": "below",
+         "dim": 1,
+         "thr": 30.0,
+         "w": 2.4
+        },
+        {
+         "g": "above",
+         "dim": 0,
+         "thr": 0.2,
+         "w": 0.0384
+        }
+       ]
+      }
+     ],
+     "bounds": [
+      [
+       0.02,
+       0.5
+      ],
+      [
+       25.0,
+       55.0
+      ],
+      [
+       3.0,
+       3.45
+      ],
+      [
+       0.02,
+       0.1
+      ],
+      [
+       6.0,
+       48.0
+      ]
+     ],
+     "exclusions": [
+      {
+       "box": [
+        [
+         0.2,
+         0.5
+        ],
+        [
+         25.0,
+         30.0
+        ],
+        [
+         3.0,
+         3.45
+        ],
+        [
+         0.02,
+         0.1
+        ],
+        [
+         6.0,
+         48.0
+        ]
+       ]
+      }
+     ],
+     "noise_terms": [],
+     "ls_scale": [
+      0.7,
+      0.7,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "硬剪除(红线):化成温度 低于 30℃ 且 预充倍率 高于 0.2C",
+      "化成温度×预充倍率 存在耦合,联动搜索"
+     ],
+     "parked": [],
+     "card": {
+      "id": "cold",
+      "kind": "good",
+      "text": "低温别上倍率，析锂没商量",
+      "why": "低温锂析出动力学差 → 死锂",
+      "utterance": "低温别上倍率，析锂没商量",
+      "rationale": "低温下锂离子嵌入石墨的固相扩散受阻，负极极化超过锂沉积电位 → 金属锂析出、死锂不可逆",
+      "speaks_to": [
+       "li"
+      ],
+      "external": false,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.1042,
+      "affected_dims": [
+       "化成温度",
+       "预充倍率"
+      ],
+      "hard_cuts": 1
+     }
+    },
+    "temp": {
+     "dims": 5,
+     "confidence": 0.75,
+     "sigma_f": 1.0,
+     "mean_terms": [
+      {
+       "kind": "gauss",
+       "dim": 1,
+       "a": 0.8,
+       "mu": 40.0,
+       "w": 6.0
+      }
+     ],
+     "bounds": [
+      [
+       0.02,
+       0.5
+      ],
+      [
+       25.0,
+       55.0
+      ],
+      [
+       3.0,
+       3.45
+      ],
+      [
+       0.02,
+       0.1
+      ],
+      [
+       6.0,
+       48.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [],
+     "ls_scale": [
+      1.0,
+      1.6,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "化成温度 在 40℃ 附近加分(±6)",
+      "化成温度 响应平坦,少花批次(长度尺度 ×1.6)"
+     ],
+     "parked": [],
+     "card": {
+      "id": "temp",
+      "kind": "good",
+      "text": "温度托到四十，膜快又不烧",
+      "why": "中高温加速 SEI 形成，过高则副反应",
+      "utterance": "温度托到四十，膜快又不烧",
+      "rationale": "升温提高 EC 还原动力学、缩短成膜时间；过高则电解液分解与产气副反应主导 → 倒U响应，峰在 40℃ 附近",
+      "speaks_to": [],
+      "external": false,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "化成温度"
+      ],
+      "hard_cuts": 0
+     }
+    },
+    "age": {
+     "dims": 5,
+     "confidence": 0.85,
+     "sigma_f": 1.0,
+     "mean_terms": [],
+     "bounds": [
+      [
+       0.02,
+       0.5
+      ],
+      [
+       25.0,
+       55.0
+      ],
+      [
+       3.0,
+       3.45
+      ],
+      [
+       0.02,
+       0.1
+      ],
+      [
+       6.0,
+       48.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [
+      {
+       "lam": 1.875,
+       "gates": [
+        {
+         "g": "below",
+         "dim": 4,
+         "thr": 24.0,
+         "w": 3.36
+        }
+       ]
+      }
+     ],
+     "ls_scale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "读数不可信(观测噪声放大):高温老化时长 低于 24h"
+     ],
+     "parked": [],
+     "card": {
+      "id": "age",
+      "kind": "good",
+      "text": "静置不到位，内阻是假的",
+      "why": "浸润/稳定不足 → 测量失真",
+      "utterance": "静置不到位，内阻是假的",
+      "rationale": "老化不足时 SEI 未稳定、电解液浸润未平衡，DCR 读数偏离稳态 → 这不是最优点问题，是观测可信度问题。所以它只动观测噪声这一个接口：既不收窄搜索域，也不说老化越长越好（那两句话它都没说）。老化时长还要和产气红线一起权衡，替它补一句「越长越好」反而会把批次推向高温长时的产气墙",
+      "speaks_to": [],
+      "external": false,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "高温老化时长"
+      ],
+      "hard_cuts": 0
+     }
+    },
+    "wrong": {
+     "dims": 5,
+     "confidence": 0.7,
+     "sigma_f": 1.0,
+     "mean_terms": [
+      {
+       "kind": "linear",
+       "dim": 0,
+       "a": 1.5,
+       "lo": 0.02,
+       "span": 0.48
+      }
+     ],
+     "bounds": [
+      [
+       0.4,
+       0.5
+      ],
+      [
+       25.0,
+       55.0
+      ],
+      [
+       3.0,
+       3.45
+      ],
+      [
+       0.02,
+       0.1
+      ],
+      [
+       6.0,
+       48.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [],
+     "ls_scale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [
+      {
+       "dim": 4,
+       "mult": 2.0,
+       "sign": 1.0,
+       "lo": 6.0,
+       "span": 42.0
+      }
+     ],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "预充倍率 搜索范围收到 0.4~0.5C",
+      "预充倍率 越大越好(线性先验)",
+      "高温老化时长 越大越占资源(评估成本最高 2×,EI 按性价比折算)"
+     ],
+     "parked": [],
+     "card": {
+      "id": "wrong",
+      "kind": "wrong",
+      "text": "化成就是走过场，1C 拉满省电费",
+      "why": "（歪经）红线区照跑，多试若干批",
+      "utterance": "化成就是走过场，1C 拉满省电费",
+      "rationale": "（这句是歪经。系统照样把它当先验称量，不当真理执行；数据会在几批之内把它推翻。）",
+      "speaks_to": [],
+      "external": false,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "预充倍率",
+       "高温老化时长"
+      ],
+      "hard_cuts": 0
+     }
+    },
+    "cast": {
+     "dims": 5,
+     "confidence": 0.4,
+     "sigma_f": 1.0,
+     "mean_terms": [],
+     "bounds": [
+      [
+       0.02,
+       0.5
+      ],
+      [
+       25.0,
+       46.0
+      ],
+      [
+       3.0,
+       3.45
+      ],
+      [
+       0.02,
+       0.1
+      ],
+      [
+       6.0,
+       48.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [],
+     "ls_scale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "未接住:快压过 2.5 必卷气 —— 「快速压射速度」不在化成参数空间内 —— 跨工序口诀无法直接落地",
+      "化成温度 搜索范围收到 25~46℃"
+     ],
+     "parked": [
+      {
+       "fragment": "快压过 2.5 必卷气",
+       "reason_code": "out_of_space",
+       "reason": "「快速压射速度」不在化成参数空间内 —— 跨工序口诀无法直接落地"
+      }
+     ],
+     "card": {
+      "id": "cast",
+      "kind": "good",
+      "text": "快压过 2.5 必卷气",
+      "why": "（压铸底仓的老话，跨场景迁移）",
+      "utterance": "快压过 2.5 必卷气",
+      "rationale": "压铸口诀迁移到化成：速度维度接不住（显式停靠），仅保留“上限要留余量”的弱类比",
+      "speaks_to": [],
+      "external": true,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "化成温度"
+      ],
+      "hard_cuts": 0
+     }
+    }
+   }
+  },
+  "casting": {
+   "params": [
+    "熔料温度",
+    "模具温度",
+    "快速压射速度",
+    "压射切换点",
+    "保压时间"
+   ],
+   "sigma_f": 0.8,
+   "cards": {
+    "p1": {
+     "dims": 5,
+     "confidence": 0.9,
+     "sigma_f": 0.8,
+     "mean_terms": [
+      {
+       "kind": "region",
+       "a": -2.4000000000000004,
+       "gates": [
+        {
+         "g": "above",
+         "dim": 2,
+         "thr": 2.5,
+         "w": 0.2
+        }
+       ]
+      },
+      {
+       "kind": "gauss",
+       "dim": 2,
+       "a": 0.6400000000000001,
+       "mu": 2.1,
+       "w": 0.3
+      }
+     ],
+     "bounds": [
+      [
+       610.0,
+       650.0
+      ],
+      [
+       180.0,
+       240.0
+      ],
+      [
+       1.5,
+       4.0
+      ],
+      [
+       120.0,
+       220.0
+      ],
+      [
+       2.0,
+       10.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [],
+     "ls_scale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "重罚(超体积上限,未硬剪):快速压射速度 高于 2.5m/s",
+      "快速压射速度 在 2.1m/s 附近加分(±0.3)"
+     ],
+     "parked": [],
+     "card": {
+      "id": "p1",
+      "kind": "good",
+      "text": "快压过 2.5 必卷气",
+      "why": "充型速度上限 → 卷气",
+      "utterance": "快压过 2.5 必卷气",
+      "rationale": "充型速度超过临界值后金属液由层流转湍流，卷入型腔气体 → 气孔缺陷",
+      "speaks_to": [
+       "gas"
+      ],
+      "external": false,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [
+       "硬剪除会削掉 60% 可行域(累计超上限 40%),降级为最强软惩罚:快速压射速度 高于 2.5m/s"
+      ],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "快速压射速度"
+      ],
+      "hard_cuts": 0
+     }
+    },
+    "p2": {
+     "dims": 5,
+     "confidence": 0.8,
+     "sigma_f": 0.8,
+     "mean_terms": [
+      {
+       "kind": "gauss",
+       "dim": 1,
+       "a": 0.6400000000000001,
+       "mu": 215.0,
+       "w": 20.0
+      }
+     ],
+     "bounds": [
+      [
+       610.0,
+       650.0
+      ],
+      [
+       200.0,
+       240.0
+      ],
+      [
+       1.5,
+       4.0
+      ],
+      [
+       120.0,
+       220.0
+      ],
+      [
+       2.0,
+       10.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [],
+     "ls_scale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "模具温度 搜索范围收到 200~240℃",
+      "模具温度 在 215℃ 附近加分(±20)"
+     ],
+     "parked": [],
+     "card": {
+      "id": "p2",
+      "kind": "good",
+      "text": "模温托住，冷隔不来",
+      "why": "模温下限 → 熔体流动性",
+      "utterance": "模温托住，冷隔不来",
+      "rationale": "模温过低使熔体前沿提前凝固，两股流汇合处未熔合 → 冷隔",
+      "speaks_to": [
+       "li"
+      ],
+      "external": false,
+      "pair_with": null
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "模具温度"
+      ],
+      "hard_cuts": 0
+     }
+    },
+    "p3": {
+     "dims": 5,
+     "confidence": 0.8,
+     "sigma_f": 0.8,
+     "mean_terms": [
+      {
+       "kind": "gauss",
+       "dim": 1,
+       "a": 0.6400000000000001,
+       "mu": 215.0,
+       "w": 20.0
+      }
+     ],
+     "bounds": [
+      [
+       610.0,
+       650.0
+      ],
+      [
+       200.0,
+       240.0
+      ],
+      [
+       1.5,
+       4.0
+      ],
+      [
+       120.0,
+       220.0
+      ],
+      [
+       2.0,
+       10.0
+      ]
+     ],
+     "exclusions": [],
+     "noise_terms": [],
+     "ls_scale": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "pseudo_obs": [],
+     "cost_terms": [],
+     "acq": {},
+     "recal": [
+      0.0,
+      -3.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "notes": [
+      "模具温度 搜索范围收到 200~240℃",
+      "模具温度 在 215℃ 附近加分(±20)",
+      "模具温度 读数校准 -3℃"
+     ],
+     "parked": [],
+     "card": {
+      "id": "p3",
+      "kind": "good",
+      "text": "我们那台机模温表偏高三度",
+      "why": "（设备个体差异 → 坐标校准）",
+      "utterance": "我们那台机模温表偏高三度",
+      "rationale": "仪表系统偏差属于坐标校准，不改响应面形状，只改读数与真值的映射。它一个字也没说模温该往哪走，所以不收窄搜索域 —— 那是「模温托住」那句话的活",
+      "speaks_to": [
+       "li"
+      ],
+      "external": false,
+      "pair_with": "p2",
+      "paired": {
+       "with_id": "p2",
+       "with_text": "模温托住，冷隔不来",
+       "note": "校准类经验单独用是恒等变换,已与「模温托住，冷隔不来」组合结算"
+      }
+     },
+     "audit": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "模具温度"
+      ],
+      "hard_cuts": 0
+     }
+    }
+   }
+  }
+ }
+}

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>精成 · 数字孪生寻优演示</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+</div>
+
+<template id="tpl-main">
+  <!-- TOP BAR -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-mark">精</span>
+      <div class="brand-text">
+        <h1>精成</h1>
+        <p>把老师傅的一句话，变成可计算的经验</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="scene-switch" role="group" aria-label="场景切换">
+        <button class="scene-btn active" data-scene="formation">磷酸铁锂 · 化成</button>
+        <button class="scene-btn" data-scene="casting">压铸 · 开机</button>
+      </div>
+      <button id="pkToggle" class="ghost-btn">试试您的手感</button>
+      <!-- ③ 标定页。放在顶栏而不是流程里:它回答的是"你这孪生凭什么算得准",
+           那是评委看完之后才会问的一句 —— 不该挤在演示动线上,但必须随手可点。 -->
+      <button id="calibBtn" class="ghost-btn">孪生从哪来</button>
+      <button id="resetBtn" class="ghost-btn">从头演示</button>
+    </div>
+  </header>
+
+  <!-- QUESTION LINE -->
+  <section id="questionline">
+    <p class="question-kicker">一件真事</p>
+    <p class="question-main">从贵州的磷矿石到电芯，这条链已经通了。<br>
+      但化成这道<span class="hl">最贵的工序</span>，窗口内哪一点又快又好，还锁在工程师的手感里。</p>
+  </section>
+
+  <!-- ARENA -->
+  <main id="arena">
+
+    <!-- LEFT FIELD -->
+    <section class="field" id="fieldL">
+      <header class="field-head">
+        <div>
+          <h2 class="field-title"><span class="dot dot-l"></span>基准田 <span class="tag unsel">无经验</span></h2>
+          <p class="field-sub">BO 在整张窗户上找，25 个节点</p>
+        </div>
+        <!-- 这里原先写的是"存档 · 今早 9:02 实跑"。那是编的:基准田是 loadScene
+             里当场裸跑的(runBO,毫秒级),没有任何存档,更没有 9:02 那一次。
+             屏幕上编一个时间戳,和"演示必须真跑"是同一条红线的两面 —— 而且这行字
+             一被追问就得当场承认造假,代价远大于它买到的那点"沉稳感"。
+             照实说:同一个沙盘、同一颗种子、只是没有那句话。 -->
+        <div class="run-badge">当场裸跑 · 同种子对照</div>
+      </header>
+      <canvas id="curveL" width="46" height="20" class="curve"></canvas>
+      <div class="field-stats">
+        <div class="stat"><span class="stat-num" id="statL">—</span><span class="stat-cap">尝试批次</span></div>
+      </div>
+    </section>
+
+    <!-- RIGHT FIELD -->
+    <section class="field" id="fieldR">
+      <header class="field-head">
+        <div>
+          <h2 class="field-title"><span class="dot dot-r"></span>经验田 <span class="tag sel">注入口诀</span></h2>
+          <p class="field-sub" id="fieldRSub">正在实跑 …</p>
+        </div>
+        <div class="run-badge live">LIVE</div>
+      </header>
+      <canvas id="curveR" width="46" height="20" class="curve"></canvas>
+      <!-- 机理视窗:收敛曲线是统计口吻,这块是**机理口吻**。每跑一批,画那一批
+           电芯里真正发生的事(CC-CV 三段、负极余量、析锂那一截)。
+           它回答的是"你这沙盘凭什么算得准" —— 统计图回答不了这句。
+           右下角永远写"定性":这是机理规则的可视化,不冒充实测数据。 -->
+      <div class="twin-wrap">
+        <canvas id="twinR" class="twin-canvas"></canvas>
+        <p class="twin-legend">
+          <span class="tl-v">— 电压</span>
+          <span class="tl-i">-- 电流</span>
+          <span class="tl-x">横轴 18h 固定 · 快慢看得见</span>
+        </p>
+      </div>
+      <div class="field-stats">
+        <div class="stat"><span class="stat-num" id="statR">—</span><span class="stat-cap">尝试批次</span></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- HEATMAP -->
+  <section id="heatwrap">
+    <div id="heatBar">
+      <div class="heat-title"><span class="heat-eye">◎</span> 搜索空间</div>
+      <div class="heat-note" id="heatNote">悬浮：把口诀的关键维度照亮</div>
+    </div>
+    <canvas id="heat" width="460" height="30" class="heat-canvas"></canvas>
+  </section>
+
+  <!-- 可信度自证:孪生当场验自己报的不确定度。
+       每批的 (mu,sigma) 都是**观测前**记下的预测 → 天然留出验证集。
+       两栏刻意不平均:可行区 σ 诚实,红线上 σ 是瞎的,那份瞎正是口诀卖的东西。 -->
+  <section id="credwrap">
+    <div class="cred-head">
+      <span class="cred-title">孪生可信度 · 自证</span>
+      <span class="cred-sub" id="credSub">留出验证:每批的预测区间都在看到读数之前记下</span>
+    </div>
+    <div class="cred-rows">
+      <div class="cred-row" id="credFeas">
+        <span class="cred-k">可行批次</span>
+        <span class="cred-v" id="credFeasV">—</span>
+        <span class="cred-n" id="credFeasN"></span>
+      </div>
+      <div class="cred-row" id="credScrap">
+        <span class="cred-k">撞红线批次</span>
+        <span class="cred-v" id="credScrapV">—</span>
+        <span class="cred-n" id="credScrapN"></span>
+      </div>
+    </div>
+    <p class="cred-foot" id="credFoot">—</p>
+  </section>
+
+  <!-- RED LINES -->
+  <section id="metwrap">
+    <div class="meter" data-line="li">
+      <span class="meter-name" id="meterLiName">析锂线</span>
+      <div class="meter-bg"><div class="meter-fill" id="meterLi"></div></div>
+    </div>
+    <div class="meter" data-line="gas">
+      <span class="meter-name" id="meterGasName">产气线</span>
+      <div class="meter-bg"><div class="meter-fill" id="meterGas"></div></div>
+    </div>
+    <div class="meter" data-line="yield">
+      <span class="meter-name" id="meterYieldName">首效线</span>
+      <div class="meter-bg"><div class="meter-fill" id="meterYield"></div></div>
+    </div>
+  </section>
+
+  <!-- PHRASE DECK -->
+  <section id="deck">
+    <div class="deck-head">
+      <span class="deck-label">经验卡</span>
+      <span class="deck-hint">抽一张念出来（卡背后是机理）</span>
+    </div>
+    <div class="deck-cards" id="deckCards"></div>
+  </section>
+
+  <!-- 同题对照:一次直觉 vs 一轮搜索。三方同 oracle 真值,亮牌才揭数值 -->
+  <section id="pkPanel" class="hidden">
+    <div class="pk-grid">
+      <div class="pk-col" id="pkColH">
+        <div class="pk-who">🧑 您的直觉</div>
+        <div class="pk-batches">一次试制</div>
+        <div class="pk-params">—</div>
+        <div class="pk-val">—</div>
+      </div>
+      <div class="pk-col" id="pkColB">
+        <div class="pk-who">🤖 AI 裸跑</div>
+        <div class="pk-batches">—</div>
+        <div class="pk-params">—</div>
+        <div class="pk-val">—</div>
+      </div>
+      <div class="pk-col" id="pkColI">
+        <div class="pk-who">🤝 AI + 您的话</div>
+        <div class="pk-batches">—</div>
+        <div class="pk-params">—</div>
+        <div class="pk-val">—</div>
+      </div>
+    </div>
+    <p class="pk-verdict" id="pkVerdict">—</p>
+  </section>
+
+  <!-- ③ 标定页「孪生从哪来」。静态叠层,打开时当场跑一遍特征自检。
+       三段的顺序就是论证顺序:规律出自哪里 → 我们的孪生真的有这些特征吗 →
+       没有实测数据这件事我们自己先说。内容全部由 calib.js 渲染。 -->
+  <div id="calib" class="overlay hidden">
+    <div class="calib-sheet">
+      <header class="calib-head">
+        <div>
+          <p class="calib-kicker">孪生从哪来</p>
+          <h2 class="calib-title">机理骨架 · 特征自检 · 路线声明<span id="calibScene"></span></h2>
+        </div>
+        <button class="ghost-btn" id="calibClose">收好</button>
+      </header>
+
+      <section class="calib-sec">
+        <h3 class="calib-h">一 · 机理骨架</h3>
+        <p class="calib-p">每条规律都是公开教科书级的<strong>定性</strong>事实,右边是沙盘里落实它的函数。
+          规律可查证,实现可点开 —— 两头都不靠信任。</p>
+        <ul class="calib-list" id="calibSkel"></ul>
+      </section>
+
+      <section class="calib-sec">
+        <h3 class="calib-h">二 · 特征自检<span class="calib-score" id="calibScore">—</span></h3>
+        <p class="calib-p">这些勾<strong>不是写死的</strong>,是打开这页时当场跑沙盘算出来的。
+          写死的勾等于自己发奖状;当场算的勾,错了就会在这里变成叉。</p>
+        <ul class="calib-list" id="calibChecks"></ul>
+      </section>
+
+      <section class="calib-sec">
+        <h3 class="calib-h">三 · 路线声明</h3>
+        <p class="calib-p">现在没有接实测数据,就说没有。公开数据集只写成下一步的锚点,
+          并写清它和化成首效的口径差在哪。<strong>不叠任何文献曲线</strong>。</p>
+        <div class="calib-route" id="calibRoute"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- SETTLEMENT OVERLAY -->
+  <div id="settle" class="overlay hidden">
+    <div class="sheet">
+      <p class="settle-kicker">结算</p>
+      <p class="settle-line-1"><span id="setDelta">—</span><span id="setNoun">个试验批次</span></p>
+      <p class="settle-line-2" id="setWhy">这条经验，让 AI 少试了这 12 个批次</p>
+      <p class="settle-value" id="setMoney">—</p>
+      <p class="settle-foot" id="setFoot">一个批次 = 一托电芯 + 化成柜占用数天</p>
+      <div class="settle-actions">
+        <button class="ghost-btn" id="settleAgain">再演一次</button>
+        <button class="primary-btn" id="settleClose">收好</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- priors_ir.js 是构建物(server/export_ir.py 生成),不是手写文件。
+     卡片先验的唯一来源:Python 编译一次,后端和 engine.js 解释同一份数据。
+     用 <script> 而不是 fetch,是为了 file:// 双击也能演 —— 断网兜底的最后一层。 -->
+<script src="priors_ir.js"></script>
+<script src="engine.js"></script>
+<script src="twin.js"></script>
+<script src="scenarios.js"></script>
+<!-- calib.js 在 app.js 之前:它只定义常量与自检函数,由 app.js 里的按钮调用。
+     它引用 SCENES / $id,那两个在 app.js 里 —— 但引用发生在点击时,不在加载时。 -->
+<script src="calib.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

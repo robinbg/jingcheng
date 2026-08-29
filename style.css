@@ -1,0 +1,386 @@
+/* style.css — the demo's visual language.
+ * Design POV: this is an instrument panel on a governor's desk, not a slide deck.
+ * "twin sync-plots" motif: one shaft, two spinning dials; the second dial cools
+ * when a human says one sentence. Matter-of-fact overshow-wow. */
+:root {
+  --ink-1: #0b0b0b;
+  --ink-2: #4a4a45;
+  --ink-3: #8a8a82;
+  --paper: #f6f4ec;        /* warm control-room paper */
+  --line: #d9d6c8;
+  --line-soft: #e7e4d6;
+  --base: #0f766e;         /* teal = left/without-experience */
+  --xper: #c2410c;         /* rust = right/with-experience */
+  --gold: #b45309;
+  --li: #b91c1c;           /* red-line status, icon+label always */
+  --gas: #c2410c;
+  --yield: #0ca30c;
+  --shadow: 0 14px 40px rgba(20,16,4,.10);
+  --radius: 14px;
+  --sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  font-family: var(--sans);
+  color: var(--ink-1);
+  background:
+    radial-gradient(1100px 500px at 18% -10%, rgba(15,118,110,.07), transparent 60%),
+    radial-gradient(900px 480px at 92% -12%, rgba(194,65,12,.06), transparent 60%),
+    var(--paper);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app { max-width: 1160px; margin: 0 auto; padding: 22px 28px 56px; }
+
+/* ---------- top bar ---------- */
+#topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 18px; padding: 6px 0 22px;
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-mark {
+  width: 46px; height: 46px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: var(--ink-1); color: var(--paper);
+  font-family: var(--mono); font-size: 22px; letter-spacing: 1px;
+  box-shadow: 0 2px 0 rgba(0,0,0,.2);
+}
+.brand-text h1 { font-size: 21px; font-weight: 700; letter-spacing: .02em; }
+.brand-text p { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; letter-spacing: .04em; }
+
+.top-actions { display: flex; align-items: center; gap: 12px; }
+.scene-switch { display: flex; background: rgba(0,0,0,.04); padding: 3px; border-radius: 999px; }
+.scene-btn {
+  border: 0; background: transparent; padding: 7px 16px; border-radius: 999px;
+  font-family: var(--sans); font-size: 13.5px; color: var(--ink-2); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.scene-btn:hover { color: var(--ink-1); }
+.scene-btn.active { background: #fff; color: var(--ink-1); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.10); }
+
+.ghost-btn {
+  border: 1px solid var(--line); background: #fff; color: var(--ink-1);
+  padding: 7px 14px; border-radius: 10px; font-size: 13px; cursor: pointer;
+  font-family: var(--sans);
+}
+.ghost-btn:hover { border-color: var(--ink-2); }
+
+/* ---------- question ---------- */
+#questionline { padding: 30px 2px 26px; }
+.question-kicker {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+  color: var(--ink-3); text-transform: uppercase; margin-bottom: 10px;
+}
+.question-main { font-size: 22px; line-height: 1.6; font-weight: 550; letter-spacing: .01em; }
+.hl { color: var(--xper); }
+
+/* ---------- arena : two fields ---------- */
+#arena {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+}
+.field {
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px 20px; box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+}
+.field::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--base);
+}
+#fieldR::before { background: var(--xper); }
+.field-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.field-title { font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--base); display: inline-block; }
+.dot-r { background: var(--xper); }
+.tag {
+  font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+}
+.tag.unsel { background: rgba(15,118,110,.10); color: var(--base); }
+.tag.sel { background: rgba(194,65,12,.12); color: var(--xper); }
+.field-sub { font-size: 12px; color: var(--ink-3); margin-top: 5px; }
+.run-badge {
+  font-size: 11px; font-family: var(--mono); color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
+  white-space: nowrap;
+}
+.run-badge.live { color: var(--xper); border-color: rgba(194,65,12,.4); animation: pulse 1.6s infinite; }
+@keyframes pulse { 0%,100% {opacity:1} 50% {opacity:.45} }
+
+.curve-wrap { position: relative; }
+.curve { width: 100%; height: 240px; display: block; }
+.curve-tag {
+  position: absolute; right: 10px; top: 8px; font-family: var(--mono);
+  font-size: 11px; color: var(--ink-3);
+  background: #fff; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line-soft);
+}
+#fieldR .curve-tag { color: var(--xper); border-color: rgba(194,65,12,.3); }
+
+/* ---------- 机理视窗 ----------
+ * 纸面上又嵌一块仪表屏(与热力图同底色 #2a3033)。它在经验田里、在收敛曲线
+ * 下方 —— 位置就是论证顺序:先看"第几批到了多少分",再看"那一批里发生了什么"。
+ * 高度压到 96px:它是**旁证**,不能把结算流程挤下屏。 */
+.twin-wrap { margin-top: 10px; }
+.twin-canvas {
+  width: 100%; height: 96px; display: block; border-radius: 8px;
+  background: #2a3033;
+}
+.twin-legend {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 5px;
+  font-family: var(--mono); font-size: 10px; color: var(--ink-3);
+}
+.twin-legend .tl-v { color: var(--gold); }
+.twin-legend .tl-i { color: #0d9488; }
+
+.field-stats { display: flex; gap: 16px; margin-top: 12px; }
+.stat { display: flex; align-items: baseline; gap: 8px; }
+.stat-num { font-family: var(--mono); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#fieldR .stat-num { color: var(--xper); }
+.stat-cap { font-size: 12px; color: var(--ink-3); }
+
+/* ---------- heatmap strip ---------- */
+#heatwrap { margin-top: 20px; background: #fff; border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 18px 16px; box-shadow: var(--shadow); }
+#heatBar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+.heat-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.heat-eye { color: var(--gold); }
+.heat-note { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+.heat-canvas { width: 100%; height: 30vh; max-height: 300px; min-height: 200px; display: block; border-radius: 8px; cursor: default; }
+/* 热力图是纸面上嵌的一块**仪表屏**:结算前画迷雾、结算后揭响应面,两者都是
+ * 深底。底色必须与 drawHeat 的迷雾同色系,否则重绘那一瞬会闪一下纸白。 */
+canvas#heat { background: #2a3033; }
+canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.45); }
+.ghost-btn.active { border-color: var(--xper); color: var(--xper); font-weight: 600; }
+
+/* ---------- red-line meters ---------- */
+#metwrap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 18px; }
+.meter { display: flex; align-items: center; gap: 10px; background: #fff;
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
+.meter::before { content: "●"; font-size: 12px; }
+.meter[data-line="li"]::before { color: var(--li); }
+.meter[data-line="gas"]::before { color: var(--gas); }
+.meter[data-line="yield"]::before { color: var(--yield); }
+.meter-name { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.meter-bg { flex: 1; height: 6px; background: var(--line-soft); border-radius: 999px; overflow: hidden; }
+.meter-fill { height: 100%; width: 0%; border-radius: 999px; background: currentColor; transition: width .3s; }
+.meter[data-line="li"] .meter-fill { color: var(--li); }
+.meter[data-line="gas"] .meter-fill { color: var(--gas); }
+.meter[data-line="yield"] .meter-fill { color: var(--yield); }
+
+/* ---------- phrase deck ---------- */
+#deck { margin-top: 18px; }
+.deck-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.deck-label { font-size: 14px; font-weight: 700; }
+.deck-hint { font-size: 12px; color: var(--ink-3); }
+.deck-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 900px) { .deck-cards { grid-template-columns: repeat(2, 1fr); } }
+.card {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; cursor: pointer; position: relative;
+  transition: border-color .15s, transform .1s, box-shadow .15s;
+  min-height: 84px;
+}
+.card:hover { border-color: var(--xper); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(20,16,4,.07); }
+.card:focus-visible { outline: 2px solid var(--xper); outline-offset: 2px; }
+.card.kind-good { border-top: 3px solid var(--xper); }
+.card.kind-wrong { border-top: 3px solid var(--li); opacity: .85; }
+.card-text { font-size: 13.5px; font-weight: 650; line-height: 1.5; }
+.card-why { font-size: 11px; color: var(--ink-3); margin-top: 5px; line-height: 1.4; }
+.card.wrong .card-text::after { content: "（歪经）"; color: var(--li); }
+.card.active { border-color: var(--xper); box-shadow: 0 0 0 2px rgba(194,65,12,.25); }
+.card.disabled { pointer-events: none; opacity: .4; }
+.card-tag { position: absolute; top: 10px; right: 12px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+/* 停靠标:这句话里有一部分**没落到孪生上**(跨工序、无对应参数……),
+ * 编译期就停在那儿了。不藏起来 —— 承认"接不住"比假装全接住更可信。 */
+.card-park {
+  display: inline-block; margin-top: 6px; font-family: var(--mono);
+  font-size: 10px; letter-spacing: .04em; color: var(--gold);
+  border: 1px dashed rgba(180,83,9,.5); border-radius: 999px; padding: 1px 7px;
+  cursor: help;
+}
+
+/* ---------- 可信度自证 ----------
+ * 仪表读数的排版,不是营销卡片:等宽数字、两行对齐、无渐变无阴影动画。
+ * 这块的说服力全在"数是当场算的",版式越素越可信。 */
+#credwrap {
+  margin-top: 14px; background: #fff; border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 16px 13px;
+}
+.cred-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cred-title { font-size: 13px; font-weight: 700; }
+.cred-sub { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); }
+.cred-rows { margin-top: 9px; display: grid; gap: 6px; }
+.cred-row {
+  display: grid; grid-template-columns: 92px 1fr auto; align-items: center;
+  gap: 10px; padding: 7px 10px; border-radius: 8px;
+  background: var(--line-soft); border-left: 3px solid var(--line);
+}
+.cred-k { font-size: 12px; color: var(--ink-2); }
+.cred-v { font-family: var(--mono); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cred-n { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+/* σ 诚实 = 绿边;σ 需重标 = 琥珀边(真出问题就得看得见,不许悄悄糊过去) */
+.cred-row.cred-ok { border-left-color: var(--base); }
+.cred-row.cred-ok .cred-v { color: var(--base); }
+.cred-row.cred-warn { border-left-color: var(--gold); }
+.cred-row.cred-warn .cred-v { color: var(--gold); }
+/* 红线那栏是**价值主张的度量**,不是失败项 —— 中性灰蓝,不用报警红 */
+.cred-row.cred-blind { border-left-color: var(--ink-3); }
+.cred-row.cred-blind .cred-v { color: var(--ink-2); }
+.cred-foot { margin-top: 9px; font-size: 11.5px; line-height: 1.65; color: var(--ink-3); }
+
+/* ---------- 同题对照三栏 ----------
+ * 一次直觉 vs 一轮搜索。视觉纪律:三栏形状完全一样,只有内容不同 —— 谁赢是
+ * 数据说的,不是版式暗示的。结算前整块不出现(#pkPanel.hidden)。 */
+#pkPanel { margin-top: 18px; }
+.pk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 820px) { .pk-grid { grid-template-columns: 1fr; } }
+.pk-col {
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  padding: 14px 16px 16px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 6px;
+  border-top: 3px solid var(--line);
+}
+#pkColH { border-top-color: var(--ink-2); }
+#pkColB { border-top-color: var(--base); }
+#pkColI { border-top-color: var(--xper); }
+.pk-who { font-size: 14px; font-weight: 700; letter-spacing: .01em; }
+.pk-batches { font-size: 12px; color: var(--ink-3); }
+.pk-params { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
+.pk-val {
+  font-family: var(--mono); font-size: 22px; font-weight: 700;
+  font-variant-numeric: tabular-nums; margin-top: 2px;
+}
+.pk-val.pk-scrap { color: var(--li); font-size: 17px; }
+/* 胜者:琥珀描边 + 一枚角标。不放大不跳动 —— 同屏单动的规矩,结算页才是主角 */
+.pk-col.pk-win {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(180,83,9,.22), var(--shadow);
+}
+.pk-col.pk-win .pk-val { color: var(--gold); }
+.pk-col.pk-win .pk-who::after {
+  content: "本轮最优"; margin-left: 8px; font-size: 10px; font-weight: 600;
+  font-family: var(--mono); letter-spacing: .06em;
+  color: var(--gold); border: 1px solid rgba(180,83,9,.45);
+  border-radius: 999px; padding: 1px 7px; vertical-align: 2px;
+}
+.pk-verdict {
+  margin-top: 12px; font-size: 14px; line-height: 1.7; color: var(--ink-1);
+  background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--gold);
+  border-radius: 10px; padding: 12px 16px;
+}
+
+/* 通用隐藏。#pkPanel 用它;.overlay 另有 display:grid,所以单独写过一条。 */
+.hidden { display: none; }
+
+/* ---------- ③ 标定页 ----------
+ * 版式刻意做成**技术附录**而不是宣传页:窄栏、等宽数字、无插图、无渐变。
+ * 这一页的说服力全在"每条勾是当场算的",版面越素,那句话越站得住。
+ * 它是叠层而不是新页面:评委的注意力不该被一次跳转打断,Esc 就回来。 */
+.calib-sheet {
+  background: var(--paper); border-radius: 18px;
+  padding: 26px 30px 30px; width: min(760px, 94vw);
+  max-height: 88vh; overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(0,0,0,.35);
+  text-align: left;
+}
+.calib-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
+  position: sticky; top: -26px; background: var(--paper); z-index: 1;
+  padding-top: 4px;
+}
+.calib-kicker { font-family: var(--mono); letter-spacing: .24em; font-size: 11px; color: var(--ink-3); }
+.calib-title { font-size: 17px; font-weight: 700; margin-top: 6px; }
+#calibScene { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin-left: 10px; font-weight: 400; }
+
+.calib-sec { margin-top: 20px; }
+.calib-h {
+  font-size: 14px; font-weight: 700; display: flex; align-items: baseline; gap: 10px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--line-soft);
+}
+.calib-p { font-size: 12.5px; line-height: 1.7; color: var(--ink-2); margin-top: 8px; }
+.calib-p strong { color: var(--ink-1); }
+.calib-list { list-style: none; margin-top: 10px; display: grid; gap: 6px; }
+
+/* 骨架行:左边规律、右边函数名。函数名用等宽 —— 它是可点开核对的地址,
+ * 不是修饰语,排版上就该看起来像地址。 */
+.ck-row {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline;
+  padding: 7px 10px; border-radius: 8px; background: #fff; border: 1px solid var(--line-soft);
+}
+@media (max-width: 640px) { .ck-row { grid-template-columns: 1fr; } }
+.ck-law { font-size: 12.5px; line-height: 1.6; color: var(--ink-1); }
+.ck-where { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+
+/* 自检行。勾绿叉红,而且**叉必须比勾显眼** —— 这页的诚意在于它敢显示叉。 */
+.cq-row {
+  display: grid; grid-template-columns: 20px 1fr; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; background: #fff;
+  border: 1px solid var(--line-soft); border-left: 3px solid var(--line);
+}
+.cq-row.cq-ok { border-left-color: var(--yield); }
+.cq-row.cq-bad { border-left-color: var(--li); background: rgba(185,28,28,.045); }
+.cq-mark { font-family: var(--mono); font-size: 14px; font-weight: 700; line-height: 1.5; }
+.cq-ok .cq-mark { color: var(--yield); }
+.cq-bad .cq-mark { color: var(--li); }
+.cq-body { display: grid; gap: 3px; }
+.cq-title { font-size: 12.5px; font-weight: 650; line-height: 1.5; }
+.cq-expect { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+/* 当场读到的数是这页真正被读的东西 —— 等宽、比判据深一档 */
+.cq-got { font-family: var(--mono); font-size: 11px; color: var(--ink-2); line-height: 1.55; }
+.calib-score {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  border-radius: 999px; padding: 2px 9px; border: 1px solid var(--line);
+}
+.calib-score.cs-ok { color: var(--yield); border-color: rgba(12,163,12,.45); }
+.calib-score.cs-bad { color: var(--li); border-color: rgba(185,28,28,.5); }
+
+.calib-route { margin-top: 10px; display: grid; gap: 7px; }
+.cr-row {
+  display: grid; grid-template-columns: 96px 1fr; gap: 12px;
+  padding: 9px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--line-soft);
+}
+@media (max-width: 640px) { .cr-row { grid-template-columns: 1fr; } }
+.cr-k { font-size: 12px; font-weight: 650; color: var(--gold); }
+.cr-v { font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
+.cr-v strong { color: var(--ink-1); }
+
+/* ---------- settlement overlay ---------- */
+.overlay {
+  position: fixed; inset: 0; background: rgba(11,11,11,.55);
+  display: grid; place-items: center; z-index: 40; backdrop-filter: blur(2px);
+}
+.overlay.hidden { display: none; }
+.sheet {
+  background: var(--paper); border-radius: 22px; padding: 44px 52px 40px;
+  max-width: 560px; width: 92%; text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,.35);
+  animation: rise .35s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes rise { from { transform: translateY(18px); opacity: 0; } to { transform: none; opacity: 1; } }
+.settle-kicker { font-family: var(--mono); letter-spacing: .3em; font-size: 12px; color: var(--ink-3); margin-bottom: 18px; }
+.settle-line-1 { font-size: 19px; color: var(--ink-2); }
+.settle-line-1 span { color: var(--xper); font-weight: 700; }
+.settle-line-2 { font-size: 14px; color: var(--ink-3); margin-top: 6px; }
+.settle-value { font-family: var(--mono); font-size: 62px; font-weight: 800;
+  color: var(--xper); letter-spacing: .01em; margin: 22px 0 6px; font-variant-numeric: tabular-nums; }
+/* 负结算:这一轮里这句话**倒扣**。金额是红的,不是灰的 —— 结算页必须能
+ * 显示坏结果,否则它就不是结算,是宣传页。 */
+.settle-value.settle-neg { color: var(--li); }
+.settle-foot { font-size: 12.5px; color: var(--ink-3); margin-bottom: 26px; }
+.settle-actions { display: flex; justify-content: center; gap: 12px; }
+.primary-btn {
+  background: var(--xper); color: #fff; border: 0; padding: 9px 22px;
+  border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--sans); box-shadow: 0 2px 0 rgba(120,40,0,.35);
+}
+.primary-btn:hover { background: #a13a08; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover { transform: none; }
+  .run-badge.live { animation: none; }
+  .sheet { animation: none; }
+}
