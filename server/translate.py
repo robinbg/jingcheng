@@ -283,6 +283,21 @@ def save_cache(data: Dict[str, Any]) -> None:
 # ---------------------------------------------------------------- 异步 job
 _JOBS: Dict[str, Dict[str, Any]] = {}
 _jobs_lock = threading.Lock()
+JOB_TTL_S = 600.0  # done 状态的 job 保留 10 分钟够前端轮询兜底,再老就是内存泄漏
+
+
+def _sweep_jobs() -> None:
+    """清掉过期的 done job。_JOBS 没有过期机制会无限长——demo 跑一天就是几千条。
+
+    不开新线程:借 start_job 每次被调用的时机顺手扫一遍,足够了,
+    没必要为这点小事再引入一个 timer 依赖。
+    """
+    now = time.time()
+    with _jobs_lock:
+        dead = [jid for jid, j in _JOBS.items()
+                if j.get("status") == "done" and now - j.get("finished", now) > JOB_TTL_S]
+        for jid in dead:
+            del _JOBS[jid]
 
 
 def _set_job(job_id: str, **kw: Any) -> None:
@@ -325,17 +340,19 @@ def translate_sync(utterance: str, space: ParamSpace, scene_id: str,
 def start_job(utterance: str, space: ParamSpace, scene_id: str,
               red_lines: List[Dict[str, str]]) -> str:
     """立即返回 job_id;LLM 在后台线程跑。HTTP handler 里绝不等慢活。"""
+    _sweep_jobs()
     job_id = uuid.uuid4().hex[:12]
     _set_job(job_id, status="pending", started=time.time(), utterance=utterance, scene=scene_id)
 
     def worker() -> None:
         try:
             spec = translate_sync(utterance, space, scene_id, red_lines, use_llm=True)
-            _set_job(job_id, status="done", spec=spec, elapsed=time.time() - _JOBS[job_id]["started"])
+            _set_job(job_id, status="done", spec=spec,
+                     elapsed=time.time() - _JOBS[job_id]["started"], finished=time.time())
         except Exception as e:
             spec = rule_translate(utterance, space, scene_id)
             spec["fallback_reason"] = f"worker 异常:{type(e).__name__}"
-            _set_job(job_id, status="done", spec=spec)
+            _set_job(job_id, status="done", spec=spec, finished=time.time())
 
     threading.Thread(target=worker, daemon=True).start()
     return job_id

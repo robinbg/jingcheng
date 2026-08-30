@@ -97,6 +97,19 @@
        "预充倍率"
       ],
       "hard_cuts": 0
+     },
+     "ir_shuffled": null,
+     "audit_shuffled": {
+      "rejected": [
+       {
+        "op": "narrow",
+        "reason": "高温老化时长 的收缩区间为空"
+       }
+      ],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [],
+      "hard_cuts": 0
      }
     },
     "cold": {
@@ -216,6 +229,101 @@
        "预充倍率"
       ],
       "hard_cuts": 1
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.9,
+      "sigma_f": 1.0,
+      "mean_terms": [
+       {
+        "kind": "region",
+        "a": -3.0,
+        "gates": [
+         {
+          "g": "below",
+          "dim": 0,
+          "thr": 0.5,
+          "w": 0.0384
+         },
+         {
+          "g": "above",
+          "dim": 4,
+          "thr": 6.0,
+          "w": 3.36
+         }
+        ]
+       }
+      ],
+      "bounds": [
+       [
+        0.02,
+        0.5
+       ],
+       [
+        25.0,
+        55.0
+       ],
+       [
+        3.0,
+        3.45
+       ],
+       [
+        0.02,
+        0.1
+       ],
+       [
+        6.0,
+        48.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [],
+      "ls_scale": [
+       0.7,
+       1.0,
+       1.0,
+       1.0,
+       0.7
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [],
+      "acq": {},
+      "recal": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "重罚(超体积上限,未硬剪):预充倍率 低于 0.5C 且 高温老化时长 高于 6h",
+       "预充倍率×高温老化时长 存在耦合,联动搜索"
+      ],
+      "parked": [],
+      "audit": {
+       "rejected": [],
+       "downgraded": [
+        "硬剪除会削掉 100% 可行域(累计超上限 40%),降级为最强软惩罚:预充倍率 低于 0.5C 且 高温老化时长 高于 6h"
+       ],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "预充倍率",
+        "高温老化时长"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [
+       "硬剪除会削掉 100% 可行域(累计超上限 40%),降级为最强软惩罚:预充倍率 低于 0.5C 且 高温老化时长 高于 6h"
+      ],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "预充倍率",
+       "高温老化时长"
+      ],
+      "hard_cuts": 0
      }
     },
     "temp": {
@@ -294,6 +402,84 @@
       "volume_cut": 0.0,
       "affected_dims": [
        "化成温度"
+      ],
+      "hard_cuts": 0
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.75,
+      "sigma_f": 1.0,
+      "mean_terms": [
+       {
+        "kind": "gauss",
+        "dim": 0,
+        "a": 0.8,
+        "mu": 0.5,
+        "w": 0.48
+       }
+      ],
+      "bounds": [
+       [
+        0.02,
+        0.5
+       ],
+       [
+        25.0,
+        55.0
+       ],
+       [
+        3.0,
+        3.45
+       ],
+       [
+        0.02,
+        0.1
+       ],
+       [
+        6.0,
+        48.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [],
+      "ls_scale": [
+       1.6,
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [],
+      "acq": {},
+      "recal": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "预充倍率 在 0.5C 附近加分(±0.48)",
+       "预充倍率 响应平坦,少花批次(长度尺度 ×1.6)"
+      ],
+      "parked": [],
+      "audit": {
+       "rejected": [],
+       "downgraded": [],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "预充倍率"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "预充倍率"
       ],
       "hard_cuts": 0
      }
@@ -377,6 +563,87 @@
       "volume_cut": 0.0,
       "affected_dims": [
        "高温老化时长"
+      ],
+      "hard_cuts": 0
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.85,
+      "sigma_f": 1.0,
+      "mean_terms": [],
+      "bounds": [
+       [
+        0.02,
+        0.5
+       ],
+       [
+        25.0,
+        55.0
+       ],
+       [
+        3.0,
+        3.45
+       ],
+       [
+        0.02,
+        0.1
+       ],
+       [
+        6.0,
+        48.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [
+       {
+        "lam": 1.875,
+        "gates": [
+         {
+          "g": "below",
+          "dim": 2,
+          "thr": 3.45,
+          "w": 0.03600000000000002
+         }
+        ]
+       }
+      ],
+      "ls_scale": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [],
+      "acq": {},
+      "recal": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "读数不可信(观测噪声放大):预充切换电压 低于 3.45V"
+      ],
+      "parked": [],
+      "audit": {
+       "rejected": [],
+       "downgraded": [],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "预充切换电压"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "预充切换电压"
       ],
       "hard_cuts": 0
      }
@@ -469,6 +736,95 @@
        "高温老化时长"
       ],
       "hard_cuts": 0
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.7,
+      "sigma_f": 1.0,
+      "mean_terms": [
+       {
+        "kind": "linear",
+        "dim": 4,
+        "a": 1.5,
+        "lo": 6.0,
+        "span": 42.0
+       }
+      ],
+      "bounds": [
+       [
+        0.02,
+        0.5
+       ],
+       [
+        25.0,
+        55.0
+       ],
+       [
+        3.0,
+        3.45
+       ],
+       [
+        0.02,
+        0.1
+       ],
+       [
+        6.0,
+        48.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [],
+      "ls_scale": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [
+       {
+        "dim": 2,
+        "mult": 2.0,
+        "sign": 1.0,
+        "lo": 3.0,
+        "span": 0.4500000000000002
+       }
+      ],
+      "acq": {},
+      "recal": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "高温老化时长 搜索范围收到 6~48h",
+       "高温老化时长 越大越好(线性先验)",
+       "预充切换电压 越大越占资源(评估成本最高 2×,EI 按性价比折算)"
+      ],
+      "parked": [],
+      "audit": {
+       "rejected": [],
+       "downgraded": [],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "预充切换电压",
+        "高温老化时长"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "预充切换电压",
+       "高温老化时长"
+      ],
+      "hard_cuts": 0
      }
     },
     "cast": {
@@ -545,6 +901,82 @@
       "volume_cut": 0.0,
       "affected_dims": [
        "化成温度"
+      ],
+      "hard_cuts": 0
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.4,
+      "sigma_f": 1.0,
+      "mean_terms": [],
+      "bounds": [
+       [
+        0.02,
+        0.5
+       ],
+       [
+        25.0,
+        55.0
+       ],
+       [
+        3.0,
+        3.45
+       ],
+       [
+        0.02,
+        0.1
+       ],
+       [
+        6.0,
+        48.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [],
+      "ls_scale": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [],
+      "acq": {},
+      "recal": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "未接住:快压过 2.5 必卷气 —— 「快速压射速度」不在化成参数空间内 —— 跨工序口诀无法直接落地",
+       "预充倍率 搜索范围收到 0.02~0.5C"
+      ],
+      "parked": [
+       {
+        "fragment": "快压过 2.5 必卷气",
+        "reason_code": "out_of_space",
+        "reason": "「快速压射速度」不在化成参数空间内 —— 跨工序口诀无法直接落地"
+       }
+      ],
+      "audit": {
+       "rejected": [],
+       "downgraded": [],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "预充倍率"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "预充倍率"
       ],
       "hard_cuts": 0
      }
@@ -655,6 +1087,100 @@
        "快速压射速度"
       ],
       "hard_cuts": 0
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.9,
+      "sigma_f": 0.8,
+      "mean_terms": [
+       {
+        "kind": "region",
+        "a": -2.4000000000000004,
+        "gates": [
+         {
+          "g": "above",
+          "dim": 3,
+          "thr": 120.0,
+          "w": 8.0
+         }
+        ]
+       },
+       {
+        "kind": "gauss",
+        "dim": 3,
+        "a": 0.6400000000000001,
+        "mu": 120.0,
+        "w": 3.0
+       }
+      ],
+      "bounds": [
+       [
+        610.0,
+        650.0
+       ],
+       [
+        180.0,
+        240.0
+       ],
+       [
+        1.5,
+        4.0
+       ],
+       [
+        120.0,
+        220.0
+       ],
+       [
+        2.0,
+        10.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [],
+      "ls_scale": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [],
+      "acq": {},
+      "recal": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "重罚(超体积上限,未硬剪):压射切换点 高于 120mm",
+       "压射切换点 在 120mm 附近加分(±3)"
+      ],
+      "parked": [],
+      "audit": {
+       "rejected": [],
+       "downgraded": [
+        "硬剪除会削掉 100% 可行域(累计超上限 40%),降级为最强软惩罚:压射切换点 高于 120mm"
+       ],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "压射切换点"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [
+       "硬剪除会削掉 100% 可行域(累计超上限 40%),降级为最强软惩罚:压射切换点 高于 120mm"
+      ],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "压射切换点"
+      ],
+      "hard_cuts": 0
      }
     },
     "p2": {
@@ -735,6 +1261,84 @@
       "volume_cut": 0.0,
       "affected_dims": [
        "模具温度"
+      ],
+      "hard_cuts": 0
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.8,
+      "sigma_f": 0.8,
+      "mean_terms": [
+       {
+        "kind": "gauss",
+        "dim": 0,
+        "a": 0.6400000000000001,
+        "mu": 610.0,
+        "w": 20.0
+       }
+      ],
+      "bounds": [
+       [
+        610.0,
+        650.0
+       ],
+       [
+        180.0,
+        240.0
+       ],
+       [
+        1.5,
+        4.0
+       ],
+       [
+        120.0,
+        220.0
+       ],
+       [
+        2.0,
+        10.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [],
+      "ls_scale": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [],
+      "acq": {},
+      "recal": [
+       0.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "熔料温度 搜索范围收到 610~650℃",
+       "熔料温度 在 610℃ 附近加分(±20)"
+      ],
+      "parked": [],
+      "audit": {
+       "rejected": [],
+       "downgraded": [],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "熔料温度"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "熔料温度"
       ],
       "hard_cuts": 0
      }
@@ -823,6 +1427,85 @@
       "volume_cut": 0.0,
       "affected_dims": [
        "模具温度"
+      ],
+      "hard_cuts": 0
+     },
+     "ir_shuffled": {
+      "dims": 5,
+      "confidence": 0.8,
+      "sigma_f": 0.8,
+      "mean_terms": [
+       {
+        "kind": "gauss",
+        "dim": 0,
+        "a": 0.6400000000000001,
+        "mu": 610.0,
+        "w": 20.0
+       }
+      ],
+      "bounds": [
+       [
+        610.0,
+        650.0
+       ],
+       [
+        180.0,
+        240.0
+       ],
+       [
+        1.5,
+        4.0
+       ],
+       [
+        120.0,
+        220.0
+       ],
+       [
+        2.0,
+        10.0
+       ]
+      ],
+      "exclusions": [],
+      "noise_terms": [],
+      "ls_scale": [
+       1.0,
+       1.0,
+       1.0,
+       1.0,
+       1.0
+      ],
+      "pseudo_obs": [],
+      "cost_terms": [],
+      "acq": {},
+      "recal": [
+       -3.0,
+       0.0,
+       0.0,
+       0.0,
+       0.0
+      ],
+      "notes": [
+       "熔料温度 搜索范围收到 610~650℃",
+       "熔料温度 在 610℃ 附近加分(±20)",
+       "熔料温度 读数校准 -3℃"
+      ],
+      "parked": [],
+      "audit": {
+       "rejected": [],
+       "downgraded": [],
+       "volume_cut": 0.0,
+       "affected_dims": [
+        "熔料温度"
+       ],
+       "hard_cuts": 0
+      }
+     },
+     "audit_shuffled": {
+      "rejected": [],
+      "downgraded": [],
+      "volume_cut": 0.0,
+      "affected_dims": [
+       "熔料温度"
       ],
       "hard_cuts": 0
      }

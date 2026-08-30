@@ -1,21 +1,54 @@
-/* style.css — the demo's visual language.
- * Design POV: this is an instrument panel on a governor's desk, not a slide deck.
- * "twin sync-plots" motif: one shaft, two spinning dials; the second dial cools
- * when a human says one sentence. Matter-of-fact overshow-wow. */
+/* style.css — 精成的视觉语言。
+ * 设计基准是 design-ref/ref1..ref7.png(队友出的稿),配色从 PNG 里直接取的:
+ * 底 #00060F/#030D1A、面板 #0C121D、描边 #2F3E52、电光蓝 #0046E2、玫红 #B3626E。
+ *
+ * 语义分工写在这儿,因为它同时约束 CSS 和 canvas 两侧,散在两处就会跑偏:
+ *   蓝 = 价值高地 / 基准田      红(玫红) = 经验注入 / 风险
+ *   白虚线 = 可行域边界          黄点 = 当前最优
+ * 深底不是为了"科技感":热力图和机理视窗本来就是深底仪表屏,原先浅色纸面上
+ * 嵌两块深屏,每次重绘那一瞬都会闪一下纸白 —— 整页转深,那道闪没了。 */
 :root {
-  --ink-1: #0b0b0b;
-  --ink-2: #4a4a45;
-  --ink-3: #8a8a82;
-  --paper: #f6f4ec;        /* warm control-room paper */
-  --line: #d9d6c8;
-  --line-soft: #e7e4d6;
-  --base: #0f766e;         /* teal = left/without-experience */
-  --xper: #c2410c;         /* rust = right/with-experience */
-  --gold: #b45309;
-  --li: #b91c1c;           /* red-line status, icon+label always */
-  --gas: #c2410c;
-  --yield: #0ca30c;
-  --shadow: 0 14px 40px rgba(20,16,4,.10);
+  /* 文字三档。深底上最容易犯的错是把次级文字压到看不见,所以 ink-3 只到 #7C8CA0
+   * 为止(对 #0C121D 面板约 4.6:1),再暗就不是"低调"而是"读不了"。 */
+  --ink-1: #F2F5F9;
+  --ink-2: #BAC6D5;
+  --ink-3: #7C8CA0;
+
+  --paper: #06090D;        /* 页面最底 */
+  --panel: #0C121D;        /* 面板面 */
+  --panel-2: #12161B;      /* 抬起一层(叠层、输入框) */
+  --screen: #030D1A;       /* 仪表屏底:热力图与机理视窗共用 */
+  --line: #2F3E52;
+  --line-soft: #1B2532;
+
+  --base: #0046E2;         /* 电光蓝 = 基准田 / 价值高地 / 主 CTA */
+  /* 蓝色文字在深底上要提亮一档才读得动 —— 但"提一档"是手感,得按对比度收。
+   * 上一版 #2A6BFF 对面板 #0C121D 只有 4.15:1,不到正文要求的 4.5,而这个
+   * token 底下挂着 .ah-n(11px)和 .rs-row::before(11px)这两处**最小号**的
+   * 蓝字:大号的 .settle-value 58px 按大字标准早就够了,于是眼睛看整页"蓝字
+   * 挺清楚",实际糊掉的恰恰是编号那几个小圆圈。#4A7CFF 对 panel 5.02:1、
+   * 对 panel-2 4.86:1,两块面板底都过 AA,色相仍在电光蓝这一档没有褪成粉蓝。 */
+  --base-soft: #4A7CFF;
+  --xper: #B3626E;         /* 玫红 = 经验田 / 注入 —— 填充/描边/canvas 用这个 */
+  /* 玫红当**小字**不够看:#B3626E 对面板 4.37:1,对 .tag.sel 那层自身 20% 淡底
+   * 只有 3.54:1,都差在 4.5 这条线下面。跟蓝色那档同一个坑 —— 大号数字(30px
+   * 的 stat-num、19px 粗的结算行)按大字标准 3.0 早就过了,所以整页扫一眼觉得
+   * "玫红挺清楚",糊掉的是 11px 的 LIVE、注入口诀、曲线角标这些小号。
+   * 不动 --xper 本身:它同时喂 canvas 侧的经验田配色,改它两边就得一起重标。
+   * 只给文字另开一档提亮版,色相/饱和不变(H351 S.35),仍是同一个玫红。 */
+  --xper-text: #C07D87;    /* 对 panel 5.86:1、对 20% 玫红淡底 4.75:1 */
+  --xper-deep: #6E2A39;
+  --gold: #E8B54A;         /* 当前最优 / 需重标 / 停靠标 */
+
+  /* 红线族。深底上 #922F37 当文字太闷,所以拆两个:li 给文字和图标,
+   * li-deep 给描边和填充,risk-field 是热力图上那片风险场。 */
+  --li: #E2565F;
+  --li-deep: #922F37;
+  --risk-field: #3D0F14;
+  --gas: #E08A4B;
+  --yield: #3ED598;
+
+  --shadow: 0 18px 44px rgba(0,0,0,.55);
   --radius: 14px;
   --sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
@@ -26,15 +59,17 @@ html { font-size: 16px; }
 body {
   font-family: var(--sans);
   color: var(--ink-1);
+  /* 两团冷光偏在顶部两角,中间留暗 —— ref1 的光位。不是装饰:它把视线压向
+   * 页面中部那块热力图,而热力图正是这场演示的主角。 */
   background:
-    radial-gradient(1100px 500px at 18% -10%, rgba(15,118,110,.07), transparent 60%),
-    radial-gradient(900px 480px at 92% -12%, rgba(194,65,12,.06), transparent 60%),
+    radial-gradient(1200px 560px at 16% -12%, rgba(0,70,226,.16), transparent 62%),
+    radial-gradient(900px 500px at 90% -14%, rgba(179,98,110,.10), transparent 62%),
     var(--paper);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 
-#app { max-width: 1160px; margin: 0 auto; padding: 22px 28px 56px; }
+#app { max-width: 1240px; margin: 0 auto; padding: 22px 28px 56px; }
 
 /* ---------- top bar ---------- */
 #topbar {
@@ -43,48 +78,109 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .brand { display: flex; align-items: center; gap: 14px; }
+/* 立方标(ref1 左上):蓝色渐层 + 一道内高光,像个金属块而不是圆角方块。 */
 .brand-mark {
   width: 46px; height: 46px; border-radius: 12px;
   display: grid; place-items: center;
-  background: var(--ink-1); color: var(--paper);
+  background: linear-gradient(150deg, var(--base-soft), var(--base) 55%, #002C93);
+  color: #fff;
   font-family: var(--mono); font-size: 22px; letter-spacing: 1px;
-  box-shadow: 0 2px 0 rgba(0,0,0,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 6px 18px rgba(0,70,226,.35);
 }
 .brand-text h1 { font-size: 21px; font-weight: 700; letter-spacing: .02em; }
 .brand-text p { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; letter-spacing: .04em; }
 
-.top-actions { display: flex; align-items: center; gap: 12px; }
-.scene-switch { display: flex; background: rgba(0,0,0,.04); padding: 3px; border-radius: 999px; }
+.top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.scene-switch { display: flex; background: rgba(255,255,255,.05); padding: 3px; border-radius: 999px; }
 .scene-btn {
   border: 0; background: transparent; padding: 7px 16px; border-radius: 999px;
   font-family: var(--sans); font-size: 13.5px; color: var(--ink-2); cursor: pointer;
   transition: background .15s, color .15s;
 }
 .scene-btn:hover { color: var(--ink-1); }
-.scene-btn.active { background: #fff; color: var(--ink-1); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.10); }
+.scene-btn.active { background: var(--base); color: #fff; font-weight: 600; box-shadow: 0 2px 10px rgba(0,70,226,.45); }
 
 .ghost-btn {
-  border: 1px solid var(--line); background: #fff; color: var(--ink-1);
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink-2);
   padding: 7px 14px; border-radius: 10px; font-size: 13px; cursor: pointer;
   font-family: var(--sans);
+  transition: border-color .15s, color .15s;
 }
-.ghost-btn:hover { border-color: var(--ink-2); }
+.ghost-btn:hover { border-color: var(--base-soft); color: var(--ink-1); }
+.ghost-btn.active { border-color: var(--xper); color: var(--xper-text); font-weight: 600; }
+
+/* 引擎徽章。●=服务端在跑,○=本地兜底。当场 kill 后端它必须自己变 ○ ——
+ * 这枚灯是"降级是设计好的"的唯一现场证据,藏起来就等于没做。 */
+.engine-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px;
+  white-space: nowrap;
+}
+.engine-badge .eb-dot { font-size: 10px; line-height: 1; }
+.engine-badge.eb-server { color: var(--base-soft); border-color: rgba(42,107,255,.5); }
+.engine-badge.eb-local { color: var(--ink-3); }
+
+/* 口吻开关。两枚小胶囊,切换 0ms —— 它换的是同一份数据的两套说法,
+ * 不重算任何东西。所以不许有过渡动画,那会暗示"在重新计算"。 */
+.tone-switch { display: flex; background: rgba(255,255,255,.05); padding: 3px; border-radius: 999px; }
+.tone-btn {
+  border: 0; background: transparent; padding: 5px 12px; border-radius: 999px;
+  font-family: var(--sans); font-size: 12.5px; color: var(--ink-3); cursor: pointer;
+}
+.tone-btn.active { background: var(--panel-2); color: var(--ink-1); font-weight: 600; box-shadow: inset 0 0 0 1px var(--line); }
 
 /* ---------- question ---------- */
-#questionline { padding: 30px 2px 26px; }
+#questionline { padding: 28px 2px 24px; }
 .question-kicker {
   font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
   color: var(--ink-3); text-transform: uppercase; margin-bottom: 10px;
 }
-.question-main { font-size: 22px; line-height: 1.6; font-weight: 550; letter-spacing: .01em; }
-.hl { color: var(--xper); }
+.question-main { font-size: 22px; line-height: 1.6; font-weight: 550; letter-spacing: .01em; color: var(--ink-1); }
+.hl { color: var(--xper-text); }
+
+/* ---------- 中央仪表:搜索空间 ----------
+ * ref1/ref3 里热力图在**视觉中心**,不是页脚的一条带。这是与旧版最大的结构
+ * 差异:旧版把它压在双田下面,评委的眼睛先看到两条曲线 —— 可这场演示卖的是
+ * "那句话让搜索空间当场收缩",收缩发生在这块屏上,它必须先被看到。 */
+#heatwrap {
+  margin-top: 4px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 18px 16px; box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+}
+/* 顶边一道蓝线:这块屏归"价值高地"那一族。 */
+#heatwrap::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--base), transparent);
+}
+#heatBar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+.heat-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; color: var(--ink-1); }
+.heat-eye { color: var(--base-soft); }
+.heat-note { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+.heat-canvas { width: 100%; height: 40vh; max-height: 420px; min-height: 260px; display: block; border-radius: 8px; cursor: default; }
+/* 底色必须与 drawHeat 的迷雾同色系,否则重绘那一瞬会闪一下底。 */
+canvas#heat { background: var(--screen); }
+canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(232,181,74,.5); }
+
+/* 图例(ref1 热力图下方那一行)。颜色语义只在这里声明一次,其他地方引用。 */
+.heat-legend {
+  display: flex; gap: 16px; flex-wrap: wrap; margin-top: 9px;
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+}
+.heat-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.heat-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; font-style: normal; }
+.hl-good { background: var(--base); }
+.hl-risk { background: var(--risk-field); box-shadow: inset 0 0 0 1px var(--li-deep); }
+.hl-edge { background: transparent; border: 1px dashed rgba(255,255,255,.75); border-radius: 0; }
+.hl-best { background: var(--gold); border-radius: 50%; }
 
 /* ---------- arena : two fields ---------- */
 #arena {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px;
 }
+@media (max-width: 900px) { #arena { grid-template-columns: 1fr; } }
 .field {
-  background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 16px 18px 20px; box-shadow: var(--shadow);
   position: relative; overflow: hidden;
 }
@@ -100,65 +196,61 @@ body {
 .tag {
   font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
 }
-.tag.unsel { background: rgba(15,118,110,.10); color: var(--base); }
-.tag.sel { background: rgba(194,65,12,.12); color: var(--xper); }
+.tag.unsel { background: rgba(0,70,226,.18); color: var(--base-soft); }
+.tag.sel { background: rgba(179,98,110,.20); color: var(--xper-text); }
 .field-sub { font-size: 12px; color: var(--ink-3); margin-top: 5px; }
 .run-badge {
   font-size: 11px; font-family: var(--mono); color: var(--ink-3);
   border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
   white-space: nowrap;
 }
-.run-badge.live { color: var(--xper); border-color: rgba(194,65,12,.4); animation: pulse 1.6s infinite; }
-@keyframes pulse { 0%,100% {opacity:1} 50% {opacity:.45} }
+/* 这枚徽章原来挂着 `animation: pulse 1.6s infinite` —— 实测回放那 3 秒里它走了
+ * 15 种透明度,而同一时刻在动的还有收敛曲线。§5A 同屏单动要的是"同一时刻只有
+ * 一样东西在动",这枚徽章是全场**最不重要**的一块(它只是说明右边这一田是当场
+ * 跑的),却在跟曲线抢眼睛;而且 infinite 意味着它连静止的那几十秒也一直在闪。
+ * 靠玫红色和边框把"这一田是活的"说清楚就够了,不需要靠闪。
+ * 删掉 keyframes 而不是留着不用 —— 留一个没人引的动画,下一个人会顺手再挂上。 */
+.run-badge.live { color: var(--xper-text); border-color: rgba(179,98,110,.55); }
 
 .curve-wrap { position: relative; }
-.curve { width: 100%; height: 240px; display: block; }
+.curve { width: 100%; height: 220px; display: block; }
 .curve-tag {
   position: absolute; right: 10px; top: 8px; font-family: var(--mono);
   font-size: 11px; color: var(--ink-3);
-  background: #fff; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line-soft);
+  background: var(--panel-2); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--line-soft);
 }
-#fieldR .curve-tag { color: var(--xper); border-color: rgba(194,65,12,.3); }
+#fieldR .curve-tag { color: var(--xper-text); border-color: rgba(179,98,110,.4); }
 
 /* ---------- 机理视窗 ----------
- * 纸面上又嵌一块仪表屏(与热力图同底色 #2a3033)。它在经验田里、在收敛曲线
- * 下方 —— 位置就是论证顺序:先看"第几批到了多少分",再看"那一批里发生了什么"。
- * 高度压到 96px:它是**旁证**,不能把结算流程挤下屏。 */
+ * 在经验田里、收敛曲线下方 —— 位置就是论证顺序:先看"第几批到了多少分",
+ * 再看"那一批里发生了什么"。高度压到 96px:它是**旁证**,不能把结算挤下屏。 */
 .twin-wrap { margin-top: 10px; }
 .twin-canvas {
   width: 100%; height: 96px; display: block; border-radius: 8px;
-  background: #2a3033;
+  background: var(--screen);
 }
 .twin-legend {
   display: flex; gap: 12px; flex-wrap: wrap; margin-top: 5px;
   font-family: var(--mono); font-size: 10px; color: var(--ink-3);
 }
 .twin-legend .tl-v { color: var(--gold); }
-.twin-legend .tl-i { color: #0d9488; }
+.twin-legend .tl-i { color: var(--base-soft); }
 
 .field-stats { display: flex; gap: 16px; margin-top: 12px; }
 .stat { display: flex; align-items: baseline; gap: 8px; }
-.stat-num { font-family: var(--mono); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-num { font-family: var(--mono); font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--base-soft); }
 #fieldR .stat-num { color: var(--xper); }
 .stat-cap { font-size: 12px; color: var(--ink-3); }
 
-/* ---------- heatmap strip ---------- */
-#heatwrap { margin-top: 20px; background: #fff; border: 1px solid var(--line);
-  border-radius: var(--radius); padding: 14px 18px 16px; box-shadow: var(--shadow); }
-#heatBar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-.heat-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-.heat-eye { color: var(--gold); }
-.heat-note { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
-.heat-canvas { width: 100%; height: 30vh; max-height: 300px; min-height: 200px; display: block; border-radius: 8px; cursor: default; }
-/* 热力图是纸面上嵌的一块**仪表屏**:结算前画迷雾、结算后揭响应面,两者都是
- * 深底。底色必须与 drawHeat 的迷雾同色系,否则重绘那一瞬会闪一下纸白。 */
-canvas#heat { background: #2a3033; }
-canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.45); }
-.ghost-btn.active { border-color: var(--xper); color: var(--xper); font-weight: 600; }
-
-/* ---------- red-line meters ---------- */
-#metwrap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 18px; }
-.meter { display: flex; align-items: center; gap: 10px; background: #fff;
+/* ---------- red-line meters ----------
+ * ref1/ref4 里风险计带**文字档位**(高风险/中风险),不只是一条进度条 ——
+ * 一条无标签的条在深底上只是装饰,评委读不出"这算高还是低"。 */
+/* 慢演页那条 strip 跟主舞台**共用这条规则**,不另开一份。三条计的排布一变,
+ * 眼睛就以为换了口径 —— 而这两页存在的意义恰恰是"同一批数,两处读出同一个
+ * 结论"(读数本身已经由 riskLevels/riskLabel 保证同源了,版式不能自己走开)。 */
+#metwrap, #slowMeters { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 18px; }
+@media (max-width: 820px) { #metwrap, #slowMeters { grid-template-columns: 1fr; } }
+.meter { display: flex; align-items: center; gap: 10px; background: var(--panel);
   border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
 .meter::before { content: "●"; font-size: 12px; }
 .meter[data-line="li"]::before { color: var(--li); }
@@ -170,28 +262,36 @@ canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.4
 .meter[data-line="li"] .meter-fill { color: var(--li); }
 .meter[data-line="gas"] .meter-fill { color: var(--gas); }
 .meter[data-line="yield"] .meter-fill { color: var(--yield); }
+/* 档位标签。宽度固定,免得数字一变整行就抖 —— 同屏单动的规矩延伸到排版上。 */
+.meter-lv {
+  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  min-width: 46px; text-align: right; white-space: nowrap;
+}
+.meter-lv.lv-hi { color: var(--li); font-weight: 600; }
+.meter-lv.lv-mid { color: var(--gold); }
+.meter-lv.lv-lo { color: var(--ink-3); }
 
 /* ---------- phrase deck ---------- */
 #deck { margin-top: 18px; }
-.deck-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.deck-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .deck-label { font-size: 14px; font-weight: 700; }
 .deck-hint { font-size: 12px; color: var(--ink-3); }
 .deck-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 @media (max-width: 900px) { .deck-cards { grid-template-columns: repeat(2, 1fr); } }
 .card {
-  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
   padding: 12px 14px; cursor: pointer; position: relative;
   transition: border-color .15s, transform .1s, box-shadow .15s;
   min-height: 84px;
 }
-.card:hover { border-color: var(--xper); transform: translateY(-1px); box-shadow: 0 6px 18px rgba(20,16,4,.07); }
-.card:focus-visible { outline: 2px solid var(--xper); outline-offset: 2px; }
+.card:hover { border-color: var(--xper); transform: translateY(-1px); box-shadow: 0 8px 22px rgba(0,0,0,.5); }
+.card:focus-visible { outline: 2px solid var(--base-soft); outline-offset: 2px; }
 .card.kind-good { border-top: 3px solid var(--xper); }
-.card.kind-wrong { border-top: 3px solid var(--li); opacity: .85; }
-.card-text { font-size: 13.5px; font-weight: 650; line-height: 1.5; }
+.card.kind-wrong { border-top: 3px solid var(--li-deep); opacity: .85; }
+.card-text { font-size: 13.5px; font-weight: 650; line-height: 1.5; color: var(--ink-1); }
 .card-why { font-size: 11px; color: var(--ink-3); margin-top: 5px; line-height: 1.4; }
 .card.wrong .card-text::after { content: "（歪经）"; color: var(--li); }
-.card.active { border-color: var(--xper); box-shadow: 0 0 0 2px rgba(194,65,12,.25); }
+.card.active { border-color: var(--xper); box-shadow: 0 0 0 2px rgba(179,98,110,.35); }
 .card.disabled { pointer-events: none; opacity: .4; }
 .card-tag { position: absolute; top: 10px; right: 12px; font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
 /* 停靠标:这句话里有一部分**没落到孪生上**(跨工序、无对应参数……),
@@ -199,15 +299,57 @@ canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.4
 .card-park {
   display: inline-block; margin-top: 6px; font-family: var(--mono);
   font-size: 10px; letter-spacing: .04em; color: var(--gold);
-  border: 1px dashed rgba(180,83,9,.5); border-radius: 999px; padding: 1px 7px;
+  border: 1px dashed rgba(232,181,74,.55); border-radius: 999px; padding: 1px 7px;
   cursor: help;
 }
+
+/* ---------- 自由输入:说一句您自己的经验 ----------
+ * 抽卡是安全牌,这个框才是"不是预录"的硬证据。所以它在主舞台上、不藏在叠层里。 */
+#sayline { margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 13px 16px 14px; }
+.say-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 9px; }
+.say-label { font-size: 13.5px; font-weight: 700; }
+.say-hint { font-size: 11.5px; color: var(--ink-3); }
+.say-row { display: flex; gap: 10px; }
+@media (max-width: 640px) { .say-row { flex-direction: column; } }
+#sayInput {
+  flex: 1; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 12px; color: var(--ink-1);
+  font-family: var(--sans); font-size: 13.5px; line-height: 1.5;
+  resize: none; min-height: 42px;
+}
+#sayInput::placeholder { color: var(--ink-3); }
+#sayInput:focus { outline: none; border-color: var(--base-soft); box-shadow: 0 0 0 2px rgba(0,70,226,.22); }
+.say-status { margin-top: 8px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); min-height: 15px; }
+.say-status.say-rule { color: var(--gold); }
+.say-status.say-err { color: var(--li); }
+
+/* 翻译卡弹层:原话 → 受影响维度 → 先验调整的人话 → 置信度(有停靠再加一行)。
+ * 四行是刻意的上限。评委在台下能读完的信息量就这么多,再多一行就没人读了。 */
+.tr-sheet {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  padding: 24px 28px 26px; width: min(620px, 94vw); text-align: left;
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+}
+.tr-kicker { font-family: var(--mono); letter-spacing: .24em; font-size: 11px; color: var(--ink-3); }
+.tr-utter { font-size: 19px; font-weight: 700; line-height: 1.55; margin-top: 10px; color: var(--ink-1); }
+.tr-rows { margin-top: 16px; display: grid; gap: 8px; }
+.tr-row { display: grid; grid-template-columns: 86px 1fr; gap: 12px; align-items: baseline;
+  padding: 9px 12px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--line-soft); }
+@media (max-width: 560px) { .tr-row { grid-template-columns: 1fr; } }
+.tr-k { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); }
+.tr-v { font-size: 13px; line-height: 1.65; color: var(--ink-2); }
+.tr-v strong { color: var(--ink-1); }
+.tr-row.tr-park { border-left: 3px solid var(--gold); }
+.tr-row.tr-park .tr-v { color: var(--gold); }
+.tr-engine { margin-top: 12px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.tr-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
 /* ---------- 可信度自证 ----------
  * 仪表读数的排版,不是营销卡片:等宽数字、两行对齐、无渐变无阴影动画。
  * 这块的说服力全在"数是当场算的",版式越素越可信。 */
 #credwrap {
-  margin-top: 14px; background: #fff; border: 1px solid var(--line);
+  margin-top: 14px; background: var(--panel); border: 1px solid var(--line);
   border-radius: 12px; padding: 12px 16px 13px;
 }
 .cred-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -217,14 +359,14 @@ canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.4
 .cred-row {
   display: grid; grid-template-columns: 92px 1fr auto; align-items: center;
   gap: 10px; padding: 7px 10px; border-radius: 8px;
-  background: var(--line-soft); border-left: 3px solid var(--line);
+  background: var(--panel-2); border-left: 3px solid var(--line);
 }
 .cred-k { font-size: 12px; color: var(--ink-2); }
 .cred-v { font-family: var(--mono); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .cred-n { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
 /* σ 诚实 = 绿边;σ 需重标 = 琥珀边(真出问题就得看得见,不许悄悄糊过去) */
-.cred-row.cred-ok { border-left-color: var(--base); }
-.cred-row.cred-ok .cred-v { color: var(--base); }
+.cred-row.cred-ok { border-left-color: var(--yield); }
+.cred-row.cred-ok .cred-v { color: var(--yield); }
 .cred-row.cred-warn { border-left-color: var(--gold); }
 .cred-row.cred-warn .cred-v { color: var(--gold); }
 /* 红线那栏是**价值主张的度量**,不是失败项 —— 中性灰蓝,不用报警红 */
@@ -239,7 +381,7 @@ canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.4
 .pk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 @media (max-width: 820px) { .pk-grid { grid-template-columns: 1fr; } }
 .pk-col {
-  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
   padding: 14px 16px 16px; box-shadow: var(--shadow);
   display: flex; flex-direction: column; gap: 6px;
   border-top: 3px solid var(--line);
@@ -252,45 +394,76 @@ canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.4
 .pk-params { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); }
 .pk-val {
   font-family: var(--mono); font-size: 22px; font-weight: 700;
-  font-variant-numeric: tabular-nums; margin-top: 2px;
+  font-variant-numeric: tabular-nums; margin-top: 2px; color: var(--ink-1);
 }
 .pk-val.pk-scrap { color: var(--li); font-size: 17px; }
 /* 胜者:琥珀描边 + 一枚角标。不放大不跳动 —— 同屏单动的规矩,结算页才是主角 */
 .pk-col.pk-win {
   border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(180,83,9,.22), var(--shadow);
+  box-shadow: 0 0 0 2px rgba(232,181,74,.28), var(--shadow);
 }
 .pk-col.pk-win .pk-val { color: var(--gold); }
 .pk-col.pk-win .pk-who::after {
   content: "本轮最优"; margin-left: 8px; font-size: 10px; font-weight: 600;
   font-family: var(--mono); letter-spacing: .06em;
-  color: var(--gold); border: 1px solid rgba(180,83,9,.45);
+  color: var(--gold); border: 1px solid rgba(232,181,74,.5);
   border-radius: 999px; padding: 1px 7px; vertical-align: 2px;
 }
 .pk-verdict {
   margin-top: 12px; font-size: 14px; line-height: 1.7; color: var(--ink-1);
-  background: #fff; border: 1px solid var(--line); border-left: 3px solid var(--gold);
+  background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--gold);
   border-radius: 10px; padding: 12px 16px;
 }
 
 /* 通用隐藏。#pkPanel 用它;.overlay 另有 display:grid,所以单独写过一条。 */
 .hidden { display: none; }
 
-/* ---------- ③ 标定页 ----------
- * 版式刻意做成**技术附录**而不是宣传页:窄栏、等宽数字、无插图、无渐变。
- * 这一页的说服力全在"每条勾是当场算的",版面越素,那句话越站得住。
- * 它是叠层而不是新页面:评委的注意力不该被一次跳转打断,Esc 就回来。 */
+/* ---------- 底部导航(ref1 页脚) ----------
+ * 三个旁证页的入口。它们是**答辩子页**,不在 60 秒主链路上 —— 放页脚就是这个
+ * 意思:主链路走完了、评委开始问了,才往这儿点。 */
+#footnav {
+  margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.fn-label { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; color: var(--ink-3); margin-right: 4px; }
+.fn-btn {
+  border: 1px solid var(--line); background: transparent; color: var(--ink-2);
+  padding: 8px 16px; border-radius: 10px; font-size: 13px; cursor: pointer; font-family: var(--sans);
+}
+.fn-btn:hover { border-color: var(--base-soft); color: var(--ink-1); }
+.fn-spacer { flex: 1; }
+
+/* 主 CTA(ref1 右下那枚蓝键)。全页只有一枚 —— 主键多了就没有主键。 */
+.primary-btn {
+  background: var(--base); color: #fff; border: 0; padding: 9px 22px;
+  border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: var(--sans); box-shadow: 0 6px 18px rgba(0,70,226,.4);
+}
+.primary-btn:hover { background: var(--base-soft); }
+.primary-btn:disabled { background: var(--line); color: var(--ink-3); box-shadow: none; cursor: default; }
+
+/* ---------- 叠层通用 ----------
+ * 三个旁证页(标定/慢演/三方/关于)都是叠层,不是路由跳转:评委的注意力不该被
+ * 一次页面跳转打断,Esc 就回到主舞台。结算页不给 Esc —— 那一下是要人读完的。 */
+.overlay {
+  position: fixed; inset: 0; background: rgba(3,6,12,.78);
+  display: grid; place-items: center; z-index: 40; backdrop-filter: blur(3px);
+  padding: 20px;
+}
+.overlay.hidden { display: none; }
+
+/* 旁证页共用的纸张。标定页、慢演页、三方对照、关于页都套它。 */
 .calib-sheet {
-  background: var(--paper); border-radius: 18px;
-  padding: 26px 30px 30px; width: min(760px, 94vw);
-  max-height: 88vh; overflow-y: auto;
-  box-shadow: 0 30px 80px rgba(0,0,0,.35);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  padding: 26px 30px 30px; width: min(880px, 96vw);
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(0,0,0,.65);
   text-align: left;
 }
 .calib-head {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line);
-  position: sticky; top: -26px; background: var(--paper); z-index: 1;
+  position: sticky; top: -26px; background: var(--panel); z-index: 1;
   padding-top: 4px;
 }
 .calib-kicker { font-family: var(--mono); letter-spacing: .24em; font-size: 11px; color: var(--ink-3); }
@@ -310,77 +483,255 @@ canvas#heat.pk-armed { cursor: crosshair; box-shadow: 0 0 0 2px rgba(180,83,9,.4
  * 不是修饰语,排版上就该看起来像地址。 */
 .ck-row {
   display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline;
-  padding: 7px 10px; border-radius: 8px; background: #fff; border: 1px solid var(--line-soft);
+  padding: 7px 10px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-soft);
 }
 @media (max-width: 640px) { .ck-row { grid-template-columns: 1fr; } }
 .ck-law { font-size: 12.5px; line-height: 1.6; color: var(--ink-1); }
 .ck-where { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
 
-/* 自检行。勾绿叉红,而且**叉必须比勾显眼** —— 这页的诚意在于它敢显示叉。 */
+/* 自检行。勾绿叉红,而且**叉必须比勾显眼** —— 这页的诚意在于它敢显示叉。
+ * 深底上"显眼"要靠底色+左边+字重三样一起上,单靠红字会被暗底吃掉。 */
 .cq-row {
   display: grid; grid-template-columns: 20px 1fr; gap: 10px;
-  padding: 8px 10px; border-radius: 8px; background: #fff;
+  padding: 8px 10px; border-radius: 8px; background: var(--panel-2);
   border: 1px solid var(--line-soft); border-left: 3px solid var(--line);
 }
 .cq-row.cq-ok { border-left-color: var(--yield); }
-.cq-row.cq-bad { border-left-color: var(--li); background: rgba(185,28,28,.045); }
+/* 这层红底原来是 .14 —— 它自己把叉的对比度吃掉了:#E2565F 压在合成出来的
+ * #2f1f25 上只有 4.27:1,不到正文那条 4.5 线,而对面的勾有 9.67:1。也就是说
+ * 这页最该被看见的那个符号,反倒是全页最难读的一个。降到 .08,底色仍是红的
+ * (看得出这行出了事),但不再跟红字抢亮度。 */
+.cq-row.cq-bad {
+  background: rgba(226,86,95,.08);
+  /* border-color 这个**简写**会连左边一起改,所以它必须写在 border-left-color
+   * 前面。原来的顺序是反的 —— 左边框被 .45 透明度盖掉,算出来是
+   * rgba(226,86,95,.45),而对面 .cq-ok 的左边是**实心** --yield。结果这页
+   * 最该跳出来的那一行,左边那道杠反倒比通过的行更淡。四边先统一,再单独
+   * 把左边压实,顺序不能倒。 */
+  border-color: rgba(226,86,95,.45);
+  border-left-color: var(--li);
+}
 .cq-mark { font-family: var(--mono); font-size: 14px; font-weight: 700; line-height: 1.5; }
 .cq-ok .cq-mark { color: var(--yield); }
-.cq-bad .cq-mark { color: var(--li); }
+/* 叉再提一档到 #E87980(对新底 5.98:1)。没有一路提到能追平勾的 #F2B6BA ——
+ * 那个亮度是够了,但已经是粉色,不再读作告警;为了对比度把红洗成粉,等于用
+ * 可读性换掉了语义。"比勾显眼"这一条靠字号(16 vs 14)、字重、红底和左边框
+ * 一起兑现,不是只靠把字调白。 */
+.cq-bad .cq-mark { color: #E87980; font-size: 16px; }
 .cq-body { display: grid; gap: 3px; }
 .cq-title { font-size: 12.5px; font-weight: 650; line-height: 1.5; }
 .cq-expect { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
-/* 当场读到的数是这页真正被读的东西 —— 等宽、比判据深一档 */
+/* 当场读到的数是这页真正被读的东西 —— 等宽、比判据亮一档 */
 .cq-got { font-family: var(--mono); font-size: 11px; color: var(--ink-2); line-height: 1.55; }
 .calib-score {
   font-family: var(--mono); font-size: 11px; font-weight: 600;
   border-radius: 999px; padding: 2px 9px; border: 1px solid var(--line);
 }
-.calib-score.cs-ok { color: var(--yield); border-color: rgba(12,163,12,.45); }
-.calib-score.cs-bad { color: var(--li); border-color: rgba(185,28,28,.5); }
+.calib-score.cs-ok { color: var(--yield); border-color: rgba(62,213,152,.5); }
+.calib-score.cs-bad { color: var(--li); border-color: rgba(226,86,95,.55); }
 
 .calib-route { margin-top: 10px; display: grid; gap: 7px; }
 .cr-row {
   display: grid; grid-template-columns: 96px 1fr; gap: 12px;
-  padding: 9px 12px; border-radius: 8px; background: #fff; border: 1px solid var(--line-soft);
+  padding: 9px 12px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line-soft);
 }
 @media (max-width: 640px) { .cr-row { grid-template-columns: 1fr; } }
 .cr-k { font-size: 12px; font-weight: 650; color: var(--gold); }
 .cr-v { font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
 .cr-v strong { color: var(--ink-1); }
 
-/* ---------- settlement overlay ---------- */
-.overlay {
-  position: fixed; inset: 0; background: rgba(11,11,11,.55);
-  display: grid; place-items: center; z-index: 40; backdrop-filter: blur(2px);
-}
-.overlay.hidden { display: none; }
+/* ---------- 结算页 ----------
+ * 新皮 + 四轴内容(用户定的口径)。ref3 的结算构图:一个大标题数、一排五个
+ * 小数、下面两条对照条。四轴的**内容**保留,但**不摆综合分公式表** ——
+ * 台前不出现评分公式,那些只在答辩子页里。 */
 .sheet {
-  background: var(--paper); border-radius: 22px; padding: 44px 52px 40px;
-  max-width: 560px; width: 92%; text-align: center;
-  box-shadow: 0 30px 80px rgba(0,0,0,.35);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 22px;
+  padding: 38px 44px 34px;
+  width: min(680px, 94vw); text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,.7);
   animation: rise .35s cubic-bezier(.2,.9,.3,1.2);
+  max-height: 92vh; overflow-y: auto;
 }
 @keyframes rise { from { transform: translateY(18px); opacity: 0; } to { transform: none; opacity: 1; } }
-.settle-kicker { font-family: var(--mono); letter-spacing: .3em; font-size: 12px; color: var(--ink-3); margin-bottom: 18px; }
+.settle-kicker { font-family: var(--mono); letter-spacing: .3em; font-size: 12px; color: var(--ink-3); margin-bottom: 16px; }
 .settle-line-1 { font-size: 19px; color: var(--ink-2); }
 .settle-line-1 span { color: var(--xper); font-weight: 700; }
-.settle-line-2 { font-size: 14px; color: var(--ink-3); margin-top: 6px; }
-.settle-value { font-family: var(--mono); font-size: 62px; font-weight: 800;
-  color: var(--xper); letter-spacing: .01em; margin: 22px 0 6px; font-variant-numeric: tabular-nums; }
+.settle-line-2 { font-size: 14px; color: var(--ink-3); margin-top: 6px; line-height: 1.6; }
+.settle-value { font-family: var(--mono); font-size: 58px; font-weight: 800;
+  color: var(--base-soft); letter-spacing: .01em; margin: 20px 0 6px; font-variant-numeric: tabular-nums; }
 /* 负结算:这一轮里这句话**倒扣**。金额是红的,不是灰的 —— 结算页必须能
- * 显示坏结果,否则它就不是结算,是宣传页。 */
+ * 显示坏结果,否则它就不是结算,是宣传页。深底上用亮红,#922F37 会闷掉。 */
 .settle-value.settle-neg { color: var(--li); }
-.settle-foot { font-size: 12.5px; color: var(--ink-3); margin-bottom: 26px; }
-.settle-actions { display: flex; justify-content: center; gap: 12px; }
-.primary-btn {
-  background: var(--xper); color: #fff; border: 0; padding: 9px 22px;
-  border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--sans); box-shadow: 0 2px 0 rgba(120,40,0,.35);
+.settle-foot { font-size: 12.5px; color: var(--ink-3); margin-bottom: 22px; line-height: 1.6; }
+.settle-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+/* 五个小数那一排(ref3)。四条增益轴 + 一条折扣轴,**只报读数,不报权重**。
+ * 权重就是评分公式,公式属于台后。 */
+.settle-axes {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+  margin: 4px 0 20px; text-align: left;
 }
-.primary-btn:hover { background: #a13a08; }
+@media (max-width: 620px) { .settle-axes { grid-template-columns: repeat(2, 1fr); } }
+.sx {
+  background: var(--panel-2); border: 1px solid var(--line-soft);
+  border-radius: 9px; padding: 8px 10px; border-top: 2px solid var(--line);
+}
+.sx-v { font-family: var(--mono); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.sx-k { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; line-height: 1.4; }
+/* 主轴那一格描边提亮 —— 大字说的是哪条轴,这里就亮哪一格,两处必须一致。 */
+.sx.sx-top { border-top-color: var(--xper); background: rgba(179,98,110,.12); }
+.sx.sx-top .sx-v { color: var(--xper-text); }
+.sx.sx-dim { opacity: .5; }
+
+/* 两条对照条(ref3 下半)。同一把尺子,长短即差距 —— 不标刻度,标了就成了图表。 */
+.settle-bars { display: grid; gap: 9px; margin-bottom: 20px; text-align: left; }
+.sb-row { display: grid; grid-template-columns: 72px 1fr auto; gap: 10px; align-items: center; }
+.sb-k { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+.sb-track { height: 10px; background: var(--line-soft); border-radius: 999px; overflow: hidden; }
+.sb-fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
+.sb-row.sb-base .sb-fill { background: var(--base); }
+.sb-row.sb-inj .sb-fill { background: var(--xper); }
+.sb-v { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* 追问入口:"没听懂?问它"。结算页读完才出现 —— 它是答辩的门,不是演示的门。 */
+.settle-ask {
+  margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--line-soft);
+  display: flex; gap: 8px; align-items: center;
+}
+#askInput {
+  flex: 1; background: var(--panel-2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 11px; color: var(--ink-1);
+  font-family: var(--sans); font-size: 13px;
+}
+#askInput::placeholder { color: var(--ink-3); }
+#askInput:focus { outline: none; border-color: var(--base-soft); }
+.ask-answer {
+  margin-top: 10px; text-align: left; font-size: 13px; line-height: 1.75;
+  color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--base); border-radius: 9px; padding: 11px 14px;
+  white-space: pre-wrap;
+}
+.ask-answer.ask-fallback { border-left-color: var(--gold); color: var(--ink-3); }
+.ask-src { display: block; margin-top: 7px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+
+/* ---------- 慢演模式(ref4) ----------
+ * 主链路 60 秒一口气跑完,评委看得见"快",看不见"怎么想的"。慢演页把同一条
+ * 轨迹拆成一批一批:上一轮 → 本轮的参数怎么变、为什么这么变。
+ * 数据全部来自 history[i] 的 mu/sigma/ei/risks —— 不另算一份,否则又是两份口径。 */
+.step-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+.step-counter {
+  font-family: var(--mono); font-size: 26px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--ink-1);
+}
+.step-counter .sc-tot { color: var(--ink-3); font-size: 18px; }
+.step-bar { flex: 1; min-width: 140px; height: 6px; background: var(--line-soft); border-radius: 999px; overflow: hidden; }
+.step-bar-fill { height: 100%; background: var(--xper); border-radius: 999px; transition: width .25s; }
+.step-nav { display: flex; gap: 8px; }
+
+/* 上一轮 → 本轮。箭头本身是信息:参数是**沿着一条推理**动的,不是随机跳的。 */
+.step-delta {
+  margin-top: 16px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center;
+}
+@media (max-width: 700px) { .step-delta { grid-template-columns: 1fr; } }
+.sd-col { background: var(--panel-2); border: 1px solid var(--line-soft); border-radius: 10px; padding: 11px 13px; }
+.sd-col.sd-now { border-color: rgba(179,98,110,.5); }
+.sd-cap { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; color: var(--ink-3); }
+.sd-arrow { font-size: 22px; color: var(--xper-text); text-align: center; }
+@media (max-width: 700px) { .sd-arrow { transform: rotate(90deg); } }
+/* 两栏里的读数行。左右两栏必须用同一套版式 —— 版式一变,眼睛就会以为
+ * 数也换了口径。空栏("第一批没有上一批")写一句话,不留空白格。 */
+.sd-kv { display: grid; grid-template-columns: 74px 1fr; gap: 8px; margin-top: 7px; align-items: baseline; }
+.sd-k { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+.sd-v { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.sd-v strong { color: var(--ink-1); font-weight: 700; }
+/* 报废那一批的读数染红。它是价值故事的一半,不该和可行批长得一样。 */
+.sd-v.sd-scrap { color: var(--li); }
+.sd-none { margin-top: 8px; font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+
+/* 参数条:每维一行,窗口内当前落点。这是"旋钮"的可视化,不是图表。 */
+.pstrip { display: grid; gap: 7px; margin-top: 6px; }
+.ps-row { display: grid; grid-template-columns: 96px 1fr 82px; gap: 10px; align-items: center; }
+@media (max-width: 560px) { .ps-row { grid-template-columns: 80px 1fr 70px; } }
+.ps-k { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ps-track { height: 8px; background: var(--line-soft); border-radius: 999px; position: relative; }
+/* 经验圈出的窗口:亮框。它是"那句话做了什么"的唯一现场证据。 */
+.ps-win { position: absolute; top: 0; bottom: 0; background: rgba(179,98,110,.28); border-radius: 999px; }
+.ps-dot { position: absolute; top: -2px; width: 12px; height: 12px; margin-left: -6px;
+  border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px var(--panel-2); transition: left .25s; }
+.ps-v { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* 本轮推理四步。四步是固定骨架:看哪儿不确定 → 先验怎么压 → 采集函数选了谁
+ * → 撞没撞红线。每一步都必须挂着一个来自 history[i] 的真数,否则就是编故事。 */
+.reason-list { list-style: none; margin-top: 10px; display: grid; gap: 7px; counter-reset: rs; }
+.rs-row {
+  display: grid; grid-template-columns: 22px 1fr; gap: 10px;
+  padding: 9px 11px; border-radius: 9px; background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+}
+.rs-row::before {
+  counter-increment: rs; content: counter(rs);
+  font-family: var(--mono); font-size: 11px; color: var(--base-soft);
+  border: 1px solid rgba(42,107,255,.45); border-radius: 50%;
+  width: 20px; height: 20px; display: grid; place-items: center;
+}
+.rs-t { font-size: 12.5px; line-height: 1.65; color: var(--ink-2); }
+.rs-t strong { color: var(--ink-1); }
+.rs-t .rs-num { font-family: var(--mono); color: var(--gold); }
+.rs-row.rs-scrap { border-left: 3px solid var(--li); background: rgba(226,86,95,.10); }
+
+/* ---------- 三方对照(ref2) ----------
+ * 经验注入 vs 传统BO裸跑 vs LLM乱试(维度打乱)。第三方是消融组:它证明
+ * "有效的不是'塞了个先验',而是**那句话说对了**" —— 打乱维度的先验一样是先验,
+ * 但它不省批次。没有这一栏,整个演示都可以被一句"你就是给了个更小的搜索域"驳掉。 */
+.ab-canvas-wrap { margin-top: 16px; background: var(--screen); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px; }
+#abCanvas { width: 100%; height: 300px; display: block; }
+.ab-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 9px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.ab-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.ab-legend i { width: 16px; height: 2px; display: inline-block; font-style: normal; }
+.abl-inj { background: var(--xper); }
+.abl-bare { background: var(--base); }
+.abl-shuf { background: var(--gold); }
+
+.ab-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12.5px; }
+.ab-table th, .ab-table td { padding: 9px 11px; text-align: right; border-bottom: 1px solid var(--line-soft); }
+.ab-table th:first-child, .ab-table td:first-child { text-align: left; }
+.ab-table th { font-size: 11px; color: var(--ink-3); font-weight: 600; letter-spacing: .04em; }
+.ab-table td { font-family: var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ab-table td:first-child { font-family: var(--sans); color: var(--ink-1); }
+.ab-table tr.ab-inj td { color: var(--xper-text); }
+.ab-table tr.ab-shuf td { color: var(--gold); }
+.ab-note { margin-top: 12px; font-size: 12px; line-height: 1.75; color: var(--ink-3);
+  border-left: 3px solid var(--line); padding-left: 12px; }
+
+/* ---------- 关于页(ref5) ---------- */
+.about-sec { margin-top: 22px; }
+.about-h { font-size: 14.5px; font-weight: 700; display: flex; align-items: baseline; gap: 10px; }
+.about-h .ah-n {
+  font-family: var(--mono); font-size: 11px; color: var(--base-soft);
+  border: 1px solid rgba(42,107,255,.45); border-radius: 999px; padding: 1px 8px;
+}
+.about-p { font-size: 13px; line-height: 1.85; color: var(--ink-2); margin-top: 9px; }
+.about-p strong { color: var(--ink-1); }
+.about-p code { font-family: var(--mono); font-size: 11.5px; color: var(--gold);
+  background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+/* 口径行:数字来源、方法归属、赛前基线。这一段是**主动声明**,不是免责声明 ——
+ * 版式上不缩小不灰化,和正文同一档。 */
+.about-terms {
+  margin-top: 22px; padding: 14px 16px; background: var(--panel-2);
+  border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 10px;
+  font-size: 12.5px; line-height: 1.8; color: var(--ink-2);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .card:hover { transform: none; }
-  .run-badge.live { animation: none; }
+  /* .run-badge.live 那条 animation:none 去掉了 —— pulse 本身已经删了(同屏单动),
+   * 留一条关掉不存在动画的规则,下一个人读到会以为那儿还有动画。 */
   .sheet { animation: none; }
+  /* .meter-fill 也要列进来:它有 transition: width .3s,而慢演页现在是**手动
+   * 步进**三条计,每点一次"下一批"三条条形就各滑一次。原来这份清单里没有它,
+   * 是因为那时三条计只在主舞台出现、且只在结算时落一次读数。 */
+  .sb-fill, .ps-dot, .step-bar-fill, .meter-fill { transition: none; }
 }
+

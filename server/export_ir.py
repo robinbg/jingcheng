@@ -21,7 +21,7 @@ from typing import Any, Dict
 from typing import List, Tuple
 
 from cards import CARDS, find_card
-from prior_dsl import ParamSpace, compile_prior, merge_specs
+from prior_dsl import ParamSpace, compile_prior, merge_specs, shuffle_dims
 from sandbox import SCENES
 
 OUT = os.path.join(os.path.dirname(__file__), "..", "cache", "priors_ir.json")
@@ -58,6 +58,48 @@ def _effective_spec(scene_id: str, card: Dict[str, Any]) -> Tuple[Dict[str, Any]
         if k not in speaks_to:
             speaks_to.append(k)
     return spec, speaks_to, mate
+
+
+def _shuffled_variant(
+    spec: Dict[str, Any], space: ParamSpace, scene_id: str, sigma_f: float
+) -> Tuple[Dict[str, Any] | None, Dict[str, Any]]:
+    """三方对照页的第三条曲线("LLM乱试")要的维度打乱变体。
+
+    打乱这一步只许调 prior_dsl.shuffle_dims —— 不能在这里另写一套洗牌逻辑,
+    否则就是又给自己埋一次"两处口径不一致"的坑：test_align.py::test_ablation
+    早就在用它证明"信息来自翻译本身",三方对照页第三条曲线如果是另一套打乱,
+    答辩台上和仓库自检就成了两个不同的实验,谁都说不清哪个是真的。
+
+    seed 用 shuffle_dims 的默认值(7),不从这里传参 —— 免得以后有人为了让
+    某张卡好看去偷偷调 seed,那和"调参调出来的"是同一类问题。
+
+    打乱后的维度组合完全可能落进校验拒收(比如把 narrow 换到了一个本来只剩
+    极小收缩空间的维度上,区间直接塌成空集)—— 这不是异常,是消融想看见的
+    东西:说明"随便换个维度"不是总能编译通过,更别说总能加速。所以拒收时
+    只回 None,让前端优雅跳过这一路曲线;绝不能塞一份"看起来能跑但其实是
+    另一张卡的响应面"的假 IR 糊过去，那正是这个仓库最忌讳的分叉。
+    """
+    audit: Dict[str, Any] = {"rejected": [], "downgraded": [], "volume_cut": 0.0,
+                              "affected_dims": [], "hard_cuts": 0}
+    try:
+        shuf_spec = shuffle_dims(spec, space)
+        cp = compile_prior(shuf_spec, space, scene_id, sigma_f=sigma_f)
+    except Exception as e:  # noqa: BLE001 — 打乱/编译期任何异常都不该崩脚本
+        audit["rejected"] = [{"op": "<shuffle>", "reason": f"{type(e).__name__}: {e}"}]
+        return None, audit
+    audit = {
+        "rejected": cp.rejected,
+        "downgraded": cp.downgraded,
+        "volume_cut": round(cp.volume_cut, 4),
+        "affected_dims": sorted(set(cp.affected_dims)),
+        "hard_cuts": len(cp.exclusions),
+    }
+    if cp.rejected:
+        # 有 op 被拒收:打乱出的这份 spec 编译期就没站住,不能算一份合法先验。
+        return None, audit
+    ir = cp.to_ir()
+    ir["audit"] = audit
+    return ir, audit
 
 
 def build() -> Dict[str, Any]:
@@ -98,6 +140,14 @@ def build() -> Dict[str, Any]:
                 "affected_dims": sorted(set(cp.affected_dims)),
                 "hard_cuts": len(cp.exclusions),
             }
+            # 三方对照页第三条曲线("LLM乱试")的 IR。挂在兄弟键上而不是原地
+            # 覆盖 —— app.js::cardsOf() 现在读的是 bank.cards[id] 这整个对象,
+            # 加一个新键不影响它认得的那几条(mean_terms/exclusions/…)。
+            # 打乱在校验期被拒收的卡这里是 None,前端拿到 null 就该跳过那条
+            # 曲线,不是拿旧 IR 或者别的卡的 IR 顶上去充数。
+            ir_shuf, audit_shuf = _shuffled_variant(spec, space, scene_id, sigma_f)
+            ir["ir_shuffled"] = ir_shuf
+            ir["audit_shuffled"] = audit_shuf
             cards[card["id"]] = ir
         out["scenes"][scene_id] = {
             "params": [p["name"] for p in scene.params],

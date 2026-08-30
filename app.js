@@ -23,6 +23,29 @@ const $id = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+/* ---------- 双口吻 ----------
+ * 同一件事两种说法:pro 用工艺术语(评委里的工程师听得进去),plain 一个英文
+ * 缩写都不用(评委里的投资人听得懂)。
+ *
+ * 两份字符串都在 narrations.js(构建物)里,**切换 0ms、不走网络**。这条不是
+ * 性能洁癖:台上换一次口吻要是转个圈,评委得到的信息是"它在重算" —— 而它其实
+ * 什么都没重算,同一份数据换一句话而已。转圈会把这个功能的意思讲反。
+ *
+ * 分工也是刻意的:**措辞在表里,填数在这儿**。模板只留 {n}/{value} 这样的槽,
+ * 数由前端从已经算出来的 state 里填 —— 表里不许出现任何数字,否则同一个数就有
+ * 了两个出处。 */
+let TONE = 'pro';
+
+function narr(slot, vals) {
+  const bank = (window.NARRATIONS && window.NARRATIONS[slot]) || null;
+  if (!bank) return '';
+  let s = bank[TONE] || bank.pro || '';
+  const v = vals || {};
+  // 只替换**给了值**的槽。没给的留在原文里(而不是替成空串):留着能在自测时
+  // 一眼看出"这句解说少喂了一个数",替成空串就成了一句看着通顺的残句。
+  return s.replace(/\{(\w+)\}/g, (m, k) => (v[k] == null ? m : String(v[k])));
+}
+
 /* ---------- state ---------- */
 const state = {
   scene: 'formation',
@@ -42,6 +65,39 @@ const SCENES = { formation: FORMATION, casting: CASTING };
 const MONEY = { formation: 80000, casting: 6000 };
 let seedNow = 20260829;
 
+/* ---------- canvas 配色 ----------
+ * 与 style.css 的 :root 同一套语义,但必须在 JS 里再写一份 —— canvas 读不到
+ * CSS 变量(getComputedStyle 能读,但每帧读一次是白花钱,而且 file:// 下
+ * 某些浏览器对未渲染元素返回空串)。
+ *
+ * **集中在这一处**是有原因的:换皮前 THEME.xper 在 app.js 里散着出现 4 次,
+ * 改主题时漏掉任何一处,画面上就会有一条上一版颜色的曲线 —— 而那种错在深底上
+ * 特别显眼,偏偏又最容易在自测里被当成"设计就是这样"放过去。
+ *
+ * 语义分工(与 CSS 注释同一份):
+ *   base 蓝 = 基准田 / 价值高地      xper 玫红 = 经验田 / 注入
+ *   edge 白虚线 = 可行域边界          best 黄 = 当前最优
+ */
+const THEME = {
+  base: '#0046E2',          // 基准田收敛曲线
+  baseSoft: '#2A6BFF',      // 深底上的蓝色标记(纯 base 在暗底上太沉)
+  xper: '#B3626E',          // 经验田收敛曲线
+  gold: '#E8B54A',          // 当前最优 / 机理斜边 / 收缩后的量程框
+  li: '#E2565F',            // 撞红线那一批
+  ink1: '#F2F5F9',
+  ink3: '#7C8CA0',
+  screen: '#030D1A',        // 仪表屏底(与 CSS 的 --screen 必须一致)
+  grid: 'rgba(122,140,164,.22)',
+  axis: 'rgba(186,198,213,.85)',
+  // 迷雾:深蓝噪点,不携带任何响应面信息
+  fogBase: [6, 16, 30],
+  fogSpan: [26, 34, 46],
+  // 揭底后的响应面:低谷偏深蓝 → 高地偏亮蓝(ref1 的价值高地就是蓝的)
+  fieldLo: [10, 26, 62],
+  fieldHi: [64, 150, 255],
+  riskField: [61, 15, 20],  // #3D0F14 风险区
+};
+
 /* ---------- 收敛曲线 ---------- */
 function drawCurve(canvas, hist, color, maxY, maxX) {
   const g = canvas.getContext('2d');
@@ -56,12 +112,12 @@ function drawCurve(canvas, hist, color, maxY, maxX) {
   const yLo = maxY - 6;      // 纵轴窗口:峰值往下 6 个点,报废批画在底边
   const yOf = v => pad.t + h - (Math.max(v, yLo) - yLo) / (maxY - yLo) * h;
 
-  g.strokeStyle = 'rgba(120,120,110,.25)'; g.lineWidth = 1;
+  g.strokeStyle = THEME.grid; g.lineWidth = 1;
   for (let gy = 0; gy <= 4; gy++) {
     const y = pad.t + (h / 4) * gy;
     g.beginPath(); g.moveTo(pad.l, y); g.lineTo(cssW - pad.r, y); g.stroke();
   }
-  g.fillStyle = '#8a8a82'; g.font = '10px "SF Mono", ui-monospace, monospace';
+  g.fillStyle = THEME.ink3; g.font = '10px "SF Mono", ui-monospace, monospace';
   for (let gi = 0; gi <= 4; gi++) {
     const val = yLo + (maxY - yLo) * (gi / 4);
     g.textAlign = 'right';
@@ -86,7 +142,7 @@ function drawCurve(canvas, hist, color, maxY, maxX) {
       g.beginPath(); g.arc(x, y, 2, 0, Math.PI * 2); g.fill();
       g.globalAlpha = 1;
     } else {
-      g.strokeStyle = '#e05252'; g.lineWidth = 1.6;
+      g.strokeStyle = THEME.li; g.lineWidth = 1.6;
       g.beginPath();
       g.moveTo(x - 3.5, y - 3.5); g.lineTo(x + 3.5, y + 3.5);
       g.moveTo(x + 3.5, y - 3.5); g.lineTo(x - 3.5, y + 3.5);
@@ -95,11 +151,11 @@ function drawCurve(canvas, hist, color, maxY, maxX) {
   });
   // 当前最优点
   const last = hist[hist.length - 1];
-  g.fillStyle = '#fff'; g.strokeStyle = color; g.lineWidth = 2;
+  g.fillStyle = THEME.screen; g.strokeStyle = color; g.lineWidth = 2;
   g.beginPath(); g.arc(xs(hist.length - 1), yOf(last.bestSoFar), 4.5, 0, Math.PI * 2);
   g.fill(); g.stroke();
 
-  g.fillStyle = '#8a8a82'; g.textAlign = 'center';
+  g.fillStyle = THEME.ink3; g.textAlign = 'center';
   g.fillText('尝试批次 →', pad.l + w / 2, cssH - 5);
 }
 
@@ -170,7 +226,7 @@ function drawHeat(hm) {
   }
 
   // 量程框(注入后收缩的那圈虚线)
-  g.strokeStyle = heatShrunk ? 'rgba(240,200,90,.9)' : 'rgba(200,200,190,.5)';
+  g.strokeStyle = heatShrunk ? 'rgba(232,181,74,.95)' : 'rgba(186,198,213,.45)';
   g.lineWidth = 2; g.setLineDash([5, 4]);
   g.strokeRect(1, 1, cssW - 2, cssH - 2);
   g.setLineDash([]);
@@ -180,7 +236,7 @@ function drawHeat(hm) {
 
   // 轴注记
   const pA = scene.params[m.px], pB = scene.params[m.py];
-  g.fillStyle = 'rgba(235,232,220,.85)'; g.font = '10px "SF Mono", ui-monospace, monospace';
+  g.fillStyle = THEME.axis; g.font = '10px "SF Mono", ui-monospace, monospace';
   g.textAlign = 'left';
   g.fillText(`${pA.name} ${m.aLo.toFixed(pA.decimals)}→${m.aHi.toFixed(pA.decimals)}${pA.unit}`, 8, cssH - 8);
   g.save(); g.translate(12, 14); g.fillText(`${pB.name}↑`, 0, 0); g.restore();
@@ -292,22 +348,22 @@ function drawExclusions(g, m, scene) {
     // 这块是**人划的**。两件事长得像会让评委以为我们把答案画上去了。
     g.save();
     g.beginPath(); g.rect(x0, y0, w, h); g.clip();
-    g.fillStyle = 'rgba(20,20,24,.42)';
+    g.fillStyle = 'rgba(3,9,18,.55)';
     g.fillRect(x0, y0, w, h);
-    g.strokeStyle = 'rgba(240,200,90,.5)'; g.lineWidth = 1;
+    g.strokeStyle = 'rgba(232,181,74,.55)'; g.lineWidth = 1;
     g.beginPath();
     for (let d = -h; d < w + h; d += 9) {
       g.moveTo(x0 + d, y1); g.lineTo(x0 + d + h, y0);
     }
     g.stroke();
     g.restore();
-    g.strokeStyle = 'rgba(240,200,90,.85)'; g.lineWidth = 1.5;
+    g.strokeStyle = 'rgba(232,181,74,.9)'; g.lineWidth = 1.5;
     g.setLineDash([4, 3]);
     g.strokeRect(x0, y0, w, h);
     g.setLineDash([]);
     // 标签只在框够大时画,免得在窄条上糊成一团
     if (w > 74 && h > 20) {
-      g.fillStyle = 'rgba(245,240,225,.92)';
+      g.fillStyle = 'rgba(242,245,249,.94)';
       g.font = '10px "SF Mono", ui-monospace, monospace';
       g.textAlign = 'center';
       g.fillText('口诀划掉', x0 + w / 2, y0 + h / 2 + 3);
@@ -400,13 +456,13 @@ function drawMechLine(g, m, scene) {
     for (const p of pts.slice(1)) g.lineTo(p.xi, p.y);
     for (let i = wall.length - 1; i >= 0; i--) g.lineTo(wall[i].xi, wall[i].y);
     g.closePath();
-    g.fillStyle = 'rgba(255,170,80,.13)';
+    g.fillStyle = 'rgba(226,86,95,.16)';
     g.fill();
-    g.strokeStyle = 'rgba(240,120,90,.85)';
+    g.strokeStyle = 'rgba(226,86,95,.9)';
     g.lineWidth = 1.4; g.setLineDash([3, 3]);
     strokeRuns(g, wall);
   }
-  g.strokeStyle = 'rgba(255,205,120,.95)';
+  g.strokeStyle = 'rgba(232,181,74,.95)';
   g.lineWidth = 1.8; g.setLineDash([7, 5]);
   strokeRuns(g, pts);
   g.setLineDash([]);
@@ -420,9 +476,9 @@ function drawMechLine(g, m, scene) {
   const tw = g.measureText(txt).width;
   const tx = cl2(mid.xi - tw / 2, 4, Math.max(4, m.cssW - tw - 6));
   const ty = cl2(mid.y - 8, 14, m.cssH - 6);
-  g.fillStyle = 'rgba(18,20,22,.72)';
+  g.fillStyle = 'rgba(3,9,18,.78)';
   g.fillRect(tx - 3, ty - 10, tw + 6, 13);
-  g.fillStyle = 'rgba(255,215,140,.98)';
+  g.fillStyle = 'rgba(232,181,74,.98)';
   g.textAlign = 'left';
   g.fillText(txt, tx, ty);
   g.restore();
@@ -431,11 +487,11 @@ function drawMechLine(g, m, scene) {
 /* 落子/推荐点标记。静态叠加,无动画 —— 不破同屏单动。 */
 function drawHeatMarks(g, m) {
   const marks = [];
-  if (state.pkPoint) marks.push({ x: state.pkPoint, icon: '🧑', col: '#e8e4d8' });
+  if (state.pkPoint) marks.push({ x: state.pkPoint, icon: '🧑', col: THEME.ink1 });
   if (state.phase === 'settled' && state.history) {
     const b = state.history.baseline, j = state.history.injected;
-    if (b && b.bestX) marks.push({ x: b.bestX, icon: '🤖', col: '#5eead4' });
-    if (j && j.bestX) marks.push({ x: j.bestX, icon: '🤝', col: '#fbbf24' });
+    if (b && b.bestX) marks.push({ x: b.bestX, icon: '🤖', col: THEME.baseSoft });
+    if (j && j.bestX) marks.push({ x: j.bestX, icon: '🤝', col: THEME.gold });
   }
   for (const mk of marks) {
     const x = heatPx(m, mk.x[m.px]), y = heatPy(m, mk.x[m.py]);
@@ -457,16 +513,39 @@ function currentBounds() {
   return scene.params.map(p => ({ lo: p.lo, hi: p.hi }));
 }
 
+/* 一批的三条线读数 → [0,1]。首效那条**方向是反的**:前两条是风险(越大越糟),
+ * 首效是达标度(越大越好),所以它不能跟前两条共用一套念法。 */
+function riskLevels(scene, at) {
+  const r = at ? scene.risks(at.x) : { li: 0, gas: 0 };
+  return {
+    li: r.li,
+    gas: r.gas,
+    yield: at ? Math.max(0, Math.min(1, (at.y - (scene.rewardMax - 3.5)) / 3.5)) : 0,
+  };
+}
+
+/* 连续量 → 一句判断。**这是全站唯一一处阈值**,慢演页的风险计也调它 ——
+ * 抄一份到 pages.js 就是这个项目反复吃亏的那类分叉:两页同一批数据、同一条线,
+ * 却因为一处 0.66 写成 0.6 而给出"安全"和"中风险"两个结论,而评委恰恰会
+ * 拿这两页对着看。方向反的首效线也只在这里判一次。 */
+function riskLabel(key, t) {
+  if (t == null) return { cls: 'lv-lo', txt: '—' };
+  if (key === 'yield') {
+    return t >= 0.66 ? { cls: 'lv-lo', txt: '达标' }
+      : t >= 0.33 ? { cls: 'lv-mid', txt: '偏低' }
+        : { cls: 'lv-hi', txt: '不达标' };
+  }
+  return t >= 0.66 ? { cls: 'lv-hi', txt: '高风险' }
+    : t >= 0.33 ? { cls: 'lv-mid', txt: '中风险' }
+      : { cls: 'lv-lo', txt: '安全' };
+}
+
 /* ---------- 红线仪表(静态数字,装饰不是证据) ---------- */
 function updateMeters(scene, hist, idx) {
   const at = hist && hist.length
     ? hist[Math.min(idx == null ? hist.length - 1 : idx, hist.length - 1)]
     : null;
-  const r = at ? scene.risks(at.x) : { li: 0, gas: 0 };
-  const yieldT = at
-    ? Math.max(0, Math.min(1, (at.y - (scene.rewardMax - 3.5)) / 3.5))
-    : 0;
-  const vals = { li: r.li, gas: r.gas, yield: yieldT };
+  const vals = riskLevels(scene, at);
   const names = {
     li: scene.redLines[0].label, gas: scene.redLines[1].label, yield: scene.redLines[2].label,
   };
@@ -476,6 +555,13 @@ function updateMeters(scene, hist, idx) {
     if (el) el.style.width = (vals[k] * 100).toFixed(0) + '%';
     const nm = $id('meter' + cap + 'Name');
     if (nm) nm.textContent = names[k];
+    // 高/中风险标签(ref1)。条形长度是连续量,评委读不出"这算高还是不高" ——
+    // 标签把它离散成一句判断。阈值和方向都在 riskLabel 里判,这里只贴。
+    const lv = $id('meter' + cap + 'Lv');
+    if (!lv) continue;
+    const { cls, txt } = riskLabel(k, at ? vals[k] : null);
+    lv.className = 'meter-lv ' + cls;
+    lv.textContent = txt;
   }
 }
 
@@ -485,20 +571,28 @@ function scrapUnit(scene) {
   return (scene.settleMixin && scene.settleMixin.scrapUnit) || '托';
 }
 
-/* ---------- 逐批解说(确定性模板,种子驱动 —— 不用 Math.random) ---------- */
+/* ---------- 逐批解说 ----------
+ * 走 narrations.js 的 batch_feasible / batch_red_line 两个槽 —— 措辞在那份表里,
+ * 填数在这儿,两边不重叠(与 export_narrations.py 头注同一条规矩)。
+ *
+ * 原先这里是五句种子驱动的**气氛话**("这排走得快 …"、"有点眉目了 …")。
+ * 它们有两个毛病,而且是同一个毛病的两面:
+ *   a) 一个字的数据都没有 —— 回放时唯一在动的那行字,念的是情绪不是读数;
+ *   b) 口吻开关拨过去它一点不变 —— 因为它压根没接文案表。
+ * 双口吻这个功能要成立,变的必须是**屏幕上真的在念的那些字**,否则开关就是装饰。
+ * 缺表时回落到自己拼一句:file:// 下 narrations.js 万一没加载,这行不能空。 */
 function lineFor(scene, idx, hist) {
   const p = hist[idx];
+  const su = scrapUnit(scene);
   if (!p.feasible) {
     const which = scene.risks(p.x);
     const worst = which.li >= which.gas ? scene.redLines[0].label : scene.redLines[1].label;
-    return `第 ${idx + 1} 批撞了${worst} —— 这一${scrapUnit(scene)}报废了`;
+    return narr('batch_red_line', { n: idx + 1, reason: worst, unit: su })
+      || `第 ${idx + 1} 批撞了${worst} —— 这一${su}报废了`;
   }
-  const rng = mulberry32(seedNow + idx * 7919);
-  const lines = [
-    '按采集函数挑的下一批 …', '往不确定的角落探一批 …', '在好点附近再压实一批 …',
-    '这排走得快 …', '有点眉目了 …',
-  ];
-  return `第 ${idx + 1} 批:${lines[Math.floor(rng() * lines.length)]}`;
+  return narr('batch_feasible', {
+    n: idx + 1, value: p.y.toFixed(2), unit: scene.rewardUnit, reward_unit: scene.rewardUnit,
+  }) || `第 ${idx + 1} 批:读数 ${p.y.toFixed(2)}${scene.rewardUnit}`;
 }
 
 /* ---------- 卡面 + IR 合成 ----------
@@ -614,9 +708,9 @@ function loadScene(sceneId) {
   renderDeck(scene);
   renderCred(scene);
   renderTwin(scene, null);
-  drawCurve($id('curveL'), base.history, '#0f766e', scene.rewardMax, 24);
+  drawCurve($id('curveL'), base.history, THEME.base, scene.rewardMax, 24);
   $id('statL').textContent = base.nBatches + ' 批';
-  drawCurve($id('curveR'), [], '#c2410c', scene.rewardMax, 20);
+  drawCurve($id('curveR'), [], THEME.xper, scene.rewardMax, 20);
   $id('statR').textContent = '—';
   updateMeters(scene, null, null);
   // 评委正在读卡面的这几秒,把结算要用的 16 轮基准田悄悄算掉(见下面那段)
@@ -721,12 +815,19 @@ function playAct(card) {
 
   let i = 0;
   $id('statR').textContent = '0 批';
-  drawCurve($id('curveR'), [], '#c2410c', scene.rewardMax, 20);
+  drawCurve($id('curveR'), [], THEME.xper, scene.rewardMax, 20);
   const stepFn = () => {
     if (i < hist.length) {
-      drawCurve($id('curveR'), hist.slice(0, i + 1), '#c2410c', scene.rewardMax, 20);
+      drawCurve($id('curveR'), hist.slice(0, i + 1), THEME.xper, scene.rewardMax, 20);
       $id('statR').textContent = (i + 1) + ' 批';
-      updateMeters(scene, hist, i);
+      // 这里原来逐批调 updateMeters —— 实测回放的 3 秒里三条风险计走了 27 种
+      // 宽度、4 种标签("安全/中风险""达标/偏低/不达标"来回跳)。那正是 §5A
+      // 要掐掉的东西:同屏单动,这一拍在动的是收敛曲线,风险计得是**静态数字**。
+      // 三条计一边刷一边跳,评委的眼睛会被拽到跳得最欢的那条上,而它恰恰是这页
+      // 最不重要的一块 —— updateMeters 自己的函数头就写着"静态数字,装饰不是
+      // 证据",跑的时候逐批刷等于把它写的纪律反过来做。
+      // 最终读数在 settle() 里落一次(app.js 那处 updateMeters 传的是最后一批),
+      // 所以这里删掉不会让风险计失去内容,只是不再让它抢戏。
       // 机理视窗:画**这一批**的充电曲线。与收敛曲线同一次重绘、同一个节拍 ——
       // 它不自己起动画,所以同屏单动仍然只有"逐批推进"这一个动作。
       renderTwin(scene, hist[i].x);
@@ -769,6 +870,140 @@ function advanceSettle(scene, plan, left) {
   plan.step(per(need));
 }
 
+/* 结算词。挑**贡献最大的那条轴**说话 —— 每类经验的价值落点不同,一句
+ * "省了 N 批"会把安全卡、观测卡、校准卡全说成零。
+ *
+ * 措辞走 narrations.js 的 settle_* 槽,填数在这儿(与逐批解说同一条规矩)。
+ * 拆成独立函数是为了口吻开关**能重画已经在屏幕上的这句话** —— 原先它内联在
+ * settle() 里,切换口吻只能等下一次结算,而评委正盯着的就是这一句。
+ *
+ * 各轴读数都是**期望**(16 种子均值),所以带一位小数。别用 Math.round:
+ * 单轮时批次本来是整数,取整不丢东西;改成均值后取整会把"少试 3.4 批"说成
+ * "少试 3 批",等于在画面上把口径又偷偷改回单轮。
+ *
+ * 否决/无功两支不进文案表:它们必须报**具体差了多少**,而那是这一轮的度量,
+ * 不是可以换一种说法的固定句。
+ *
+ * `named` = 这句话有没有点名红线(card.speaksTo 非空)。废品那一轴必须跟着它
+ * 分两句念,**因为记分卡就是按它分两支记的**(engine.js cardValue:speaksTo
+ * 为空时 scrapTerm 落到总废品)。原先两支共用一句"挡在了它点名的那条红线外"
+ * —— 而现场输入 injectTrans 特意把 speaksTo 设成空,于是屏幕上那句话claim的
+ * 归因,恰恰是它没做的那件事;更糟的是它按总废品领了钱,措辞却在说它只领了
+ * 点名那一笔。engine.js:556 那个已知缺陷不修(改法要重标全部已公布数字),
+ * 但**描述它的话必须照它实际走的那条分账口径说**。 */
+function settleWhy(scene, v, top, harmful, named) {
+  const ru = scene.rewardUnit;
+  if (harmful) {
+    return v.vetoed && v.gainBest < 0
+      ? `这句话被数据否决了:推荐点的真值低了 ${Math.abs(v.gainBest).toFixed(2)}${ru}`
+        + ' —— 早点得到一个更差的答案不是加速'
+      : '这句话没帮上忙 —— 数据把它压了回去';
+  }
+  if (!top || top.w <= 0.05) return '这句话这一轮几乎没起作用';
+  const slot = {
+    batches: ['settle_batches', { axis_value: v.savedBatches.toFixed(1), unit: scene.settleMixin.noun }],
+    scrap: [named ? 'settle_scrap' : 'settle_scrap_total',
+      { axis_value: v.scrapTerm.toFixed(1), unit: scrapUnit(scene) }],
+    quality: ['settle_quality', { axis_value: v.gainBest.toFixed(2), reward_unit: ru }],
+    honesty: ['settle_honesty', { axis_value: v.gainHonesty.toFixed(1), reward_unit: ru }],
+    fidelity: ['settle_fidelity', {}],
+  }[top.id];
+  if (!slot) return '这句话这一轮几乎没起作用';
+  // 表没加载时(file:// 下万一 narrations.js 掉了)回落到自己拼一句 —— 结算页
+  // 那一行绝不能空,它是全场唯一一句解释大字的话。
+  return narr(slot[0], slot[1]) || {
+    batches: `这句话,让 AI 平均少试了 ${v.savedBatches.toFixed(1)} 个${scene.settleMixin.noun}`,
+    scrap: named
+      ? `这句话把每轮 ${v.scrapTerm.toFixed(1)} ${scrapUnit(scene)}报废挡在了它点名的那条红线外`
+      : `这句话让每轮报废少了 ${v.scrapTerm.toFixed(1)} ${scrapUnit(scene)};`
+        + '它没点名具体红线,所以这一笔按总废品记',
+    quality: `批次没省多少,但推荐点的真值高了 ${v.gainBest.toFixed(2)}${ru} —— 它买的是质量不是速度`,
+    honesty: `它把交付读数的虚高压掉了 ${v.gainHonesty.toFixed(1)}${ru} —— 拦住的是把假数字发上产线的那次事故`,
+    fidelity: '这句话声明的区间没有被执行到 —— 它在产线上是空的',
+  }[top.id];
+}
+
+/* ---------- 结算页:五个小数 + 两条对照条 ----------
+ *
+ * §5A 台前/台后在这两块上最容易破。纪律是一句话:**只报读数,不报权重。**
+ *
+ * 四条增益轴 + 一条折扣轴,画面上写的是"少试 3.4 批""少报废 1.4 托"这样的
+ * 读数;`1.5×` `4×` `−2×` 那几个系数一个都不出现。系数就是评分公式,而公式
+ * 一上台,演示立刻从"这句话值多少钱"变成"你凭什么这么算" —— 那是答辩环节该
+ * 打的仗,不该占用台上那 60 秒。想看公式的评委点开旁证页,那儿写得全。
+ *
+ * 主轴那一格描边提亮,与大字说的是同一条轴。两处不一致的话,评委会先信大字
+ * 还是先信亮格?这种小的自相矛盾比少一块信息贵得多。 */
+function renderSettleAxes(scene, v, top, named) {
+  const wrap = $id('setAxes');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const su = scrapUnit(scene);
+  const ru = scene.rewardUnit;
+  const sgn1 = n => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(1);
+  const sgn2 = n => (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(2);
+  // 读数 + 一句人话。人话里不含任何系数,只说这条轴**量的是什么**。
+  const axes = [
+    ['batches', sgn1(v.savedBatches), '少试的' + scene.settleMixin.noun],
+    // 这一格的小字必须跟着实际走的那条分账口径 —— 没点名红线的句子走的是
+    // 总废品那一支(engine.js cardValue),写"按它点名的红线记"就是在给一个
+    // 没发生的归因署名。同一条纪律见 settleWhy 上面那段。
+    ['scrap', sgn1(v.scrapTerm),
+      '少报废(' + su + (named ? ',按它点名的红线记' : ',未点名红线 → 按总废品记') + ')'],
+    ['quality', sgn2(v.gainBest) + ru, '推荐点真值'],
+    ['honesty', sgn2(v.gainHonesty) + ru, '压掉的交付虚高'],
+    ['fidelity', (v.unmet * 100).toFixed(0) + '%', '声明区间未被执行'],
+  ];
+  for (const [id, val, cap] of axes) {
+    const d = document.createElement('div');
+    // 主轴亮,其余照旧;贡献几乎为零的轴压暗 —— 五格一样亮等于说五条轴都在起
+    // 作用,而实测多数卡只有一两条轴真的动了。
+    const term = v.terms.find(t => t.id === id);
+    const dim = !term || Math.abs(term.w) < 0.05;
+    d.className = 'sx' + (top && top.id === id ? ' sx-top' : dim ? ' sx-dim' : '');
+    const ve = document.createElement('span'); ve.className = 'sx-v'; ve.textContent = val;
+    const ke = document.createElement('span'); ke.className = 'sx-k'; ke.textContent = cap;
+    d.appendChild(ve); d.appendChild(ke);
+    wrap.appendChild(d);
+  }
+}
+
+/* 两条对照条:批次与废品。大字只讲一条轴,这两条给的是评委**能自己对**的量 ——
+ * "少试几批"和"少废几托"是他回厂之后唯一会复述的两个数。
+ *
+ * 口径必须与大字一致:这里画的是 16 种子均值,不是台上刚跑那一轮。基准田那份
+ * 均值从 settleBaseline 读(回放时已经摊着算完、缓存着),注入田那份由它减去
+ * v.savedBatches/savedScrap 反推 —— 反推而不是另跑一遍,是为了保证两条条子和
+ * 大字出自同一份数;另跑一遍就是第二条计算路径。 */
+function renderSettleBars(scene, v) {
+  const wrap = $id('setBars');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const bm = settleBaseline(scene, v.seeds, seedNow);
+  const su = scrapUnit(scene);
+  const rows = [
+    ['尝试' + scene.settleMixin.noun, bm.nBatches, bm.nBatches - v.savedBatches, 1],
+    ['报废 ' + su, bm.scrapped, bm.scrapped - v.savedScrap, 1],
+  ];
+  for (const [cap, bv, iv, digits] of rows) {
+    const span = Math.max(bv, iv, 1e-9);
+    for (const [who, val, cls] of [['无经验', bv, 'sb-base'], ['注入经验', iv, 'sb-inj']]) {
+      const row = document.createElement('div');
+      row.className = 'sb-row ' + cls;
+      const k = document.createElement('span'); k.className = 'sb-k';
+      k.textContent = who + ' · ' + cap;
+      const track = document.createElement('div'); track.className = 'sb-track';
+      const fill = document.createElement('div'); fill.className = 'sb-fill';
+      fill.style.width = (Math.max(0, val) / span * 100).toFixed(1) + '%';
+      track.appendChild(fill);
+      const ve = document.createElement('span'); ve.className = 'sb-v';
+      ve.textContent = val.toFixed(digits);
+      row.appendChild(k); row.appendChild(track); row.appendChild(ve);
+      wrap.appendChild(row);
+    }
+  }
+}
+
 /* ---------- 结算 ---------- */
 function settle(inj, base, card, plan) {
   state.phase = 'settled'; state.playing = false;
@@ -809,24 +1044,12 @@ function settle(inj, base, card, plan) {
   const money = v.score * MONEY[scene.id];
   const harmful = v.vetoed || v.score < 0;
 
-  // 结算词挑**贡献最大的那条轴**说话 —— 每类经验的价值落点不同,一句
-  // "省了 N 批"会把安全卡、观测卡、校准卡全说成零。
-  // 各轴的读数都是**期望**(16 种子均值),所以带一位小数。原先是 Math.round
-  // —— 单轮时批次本来就是整数,取整不丢东西;改成均值后取整会把"少试 3.4 批"
-  // 说成"少试 3 批",等于在画面上把口径又偷偷改回单轮。
-  const axisWhy = {
-    batches: () => `这句话,让 AI 平均少试了 ${delta.toFixed(1)} 个${scene.settleMixin.noun}`,
-    scrap: () => `这句话把每轮 ${v.scrapTerm.toFixed(1)} ${scrapUnit(scene)}报废挡在了它点名的那条红线外`,
-    quality: () => `批次没省多少,但推荐点的真值高了 ${gainBest.toFixed(2)}${scene.rewardUnit} —— 它买的是质量不是速度`,
-    honesty: () => `它把交付读数的虚高压掉了 ${v.gainHonesty.toFixed(1)}${scene.rewardUnit} —— 拦住的是把假数字发上产线的那次事故`,
-    fidelity: () => `这句话声明的区间没有被执行到 —— 它在产线上是空的`,
-  };
   const top = v.terms.slice().sort((a, b) => b.w - a.w)[0];
-  const why = harmful
-    ? (v.vetoed && gainBest < 0
-      ? `这句话被数据否决了:推荐点的真值低了 ${Math.abs(gainBest).toFixed(2)}${scene.rewardUnit} —— 早点得到一个更差的答案不是加速`
-      : `这句话没帮上忙 —— 数据把它压了回去`)
-    : (top && top.w > 0.05 ? axisWhy[top.id]() : `这句话这一轮几乎没起作用`);
+  // 这句话有没有点名红线。**读的是喂给记分卡的那同一个 speaksTo**,不是另找一处
+  // 推断 —— 措辞与分账口径必须由同一个值决定,否则两处哪天分叉,画面上就会出现
+  // "按点名的红线记"配着一笔总废品的钱。现场输入(injectTrans)特意是空的。
+  const named = ((card && card.speaksTo) || []).length > 0;
+  const why = settleWhy(scene, v, top, harmful, named);
 
   // 大字也跟着主轴走:安全卡的大字是"少报废几托",观测卡的大字是"压掉多少
   // 虚高" —— 大字与解释词说同一件事,不能大字念批次、小字讲废品。
@@ -850,6 +1073,10 @@ function settle(inj, base, card, plan) {
     : (scrapSaved > 0
       ? (!top || top.id !== 'scrap' ? ` · 每轮少报废 ${scrapSaved.toFixed(1)} ${su}` : '')
       : ` · 每轮多报废 ${(-scrapSaved).toFixed(1)} ${su}`);
+  // 结算词 = 主轴那句话 + 废品尾巴。两段都存下来,好让口吻开关重画它 ——
+  // 只存 v/top/harmful 这三个**读数**,不存拼好的字符串:存字符串就等于把
+  // "换一种说法"变成"换一份数据",而这个开关的全部意思正是数据没变。
+  state.lastSettle = { v, top, harmful, scrapTail, named };
   $id('setWhy').textContent = why + scrapTail;
   $id('setMoney').textContent = (money < 0 ? '−' : '') + moneyFmt(Math.abs(money));
   $id('setMoney').classList.toggle('settle-neg', money < 0);
@@ -858,7 +1085,26 @@ function settle(inj, base, card, plan) {
   // 差异的原因得是他能读到的,不是他得来问的。
   $id('setFoot').textContent = scene.settleMixin.line
     + ` · ${v.seeds} 种子均值 · 金额量级为行业公开估算`;
+
+  // 五个小数 + 两条对照条。只报读数,不报权重(§5A) —— 见 renderSettleAxes 上面那段。
+  renderSettleAxes(scene, v, harmful ? null : (top && top.w > 0.05 ? top : null), named);
+  renderSettleBars(scene, v);
+
+  // 观测可信度类的卡(「那批老化过的料,首效数据看着高其实虚」)在金额那一栏
+  // 必须换句话说。它省的**不是**批次也不是废品:它拦住的是把一个虚高结果发上
+  // 产线的那一次事故。照批次折钱会把它说成"几乎白干" —— 而漏掉这一类,等于用
+  // 评分表宣布"看穿假数据"这种经验没有价值。
+  //
+  // 判据仍然是**测出来的数**(honesty 是主轴),不是 card.id === 'age' 那种贴标签。
+  if (!harmful && top && top.id === 'honesty') {
+    $id('setFoot').textContent = '避免一次错误放行 · ' + $id('setFoot').textContent;
+  }
   $id('settle').classList.remove('hidden');
+  // 追问框每次结算清空 —— 上一张卡的答案留在屏幕上配下一张卡的数,是最难发现
+  // 的一种错:两样都是真的,只是不配对。
+  $id('askAnswer').classList.add('hidden');
+  $id('askAnswer').textContent = '';
+  $id('askInput').value = '';
 
   $id('statR').textContent = inj.nBatches + ' 批';
   $id('fieldRSub').textContent = '收束 → ' + inj.nBatches + ' 批,真值 ' + inj.trueBest.toFixed(1) + scene.rewardUnit;
@@ -957,10 +1203,239 @@ function togglePk() {
   }
 }
 
+/* ================================================================
+ * 自由输入 → 翻译卡 → 注入(§5.2)
+ *
+ * 抽卡是安全牌。九张卡的先验都是**预编译好的构建物**,评委完全有理由怀疑
+ * "你们只是排练了九句话" —— 这个框是唯一能回答那句话的东西:现场随口一句,
+ * 后端当场编译,接不住的部分显式停靠。所以它在主舞台上,不藏在叠层里。
+ *
+ * 两条纪律:
+ *   · **浏览器不编译先验。** 注入用的 IR 是后端 _card_view 一并带回来的编译
+ *     结果(server.py 里那段注释写了原因)。断网时走 api.js 的"借卡"兜底,
+ *     并且把"这是借来的"写在卡上 —— 降级要看得见,不能悄悄换一份东西。
+ *   · **接不住就说接不住。** 停靠项单独一行、金色左边框,不混在正文里。
+ *     一个能承认"这半句我不懂"的系统,比一个句句都懂的系统可信。
+ * ================================================================ */
+let pendingTr = null;      // 翻译卡上正摆着的那份 view,点"注入"时用
+
+function trRow(k, v, cls) {
+  const row = document.createElement('div');
+  row.className = 'tr-row' + (cls ? ' ' + cls : '');
+  const ke = document.createElement('span'); ke.className = 'tr-k'; ke.textContent = k;
+  const ve = document.createElement('span'); ve.className = 'tr-v'; ve.textContent = v;
+  row.appendChild(ke); row.appendChild(ve);
+  return row;
+}
+
+/* 翻译卡四行是**刻意的上限**:原话 → 受影响维度 → 先验调整的人话 → 置信度。
+ * 有停靠再加一行。评委在台下能读完的信息量就这么多,第五行开始没人看 ——
+ * 而这张卡的作用是让他一眼确认"它听懂了什么、没听懂什么"。 */
+function renderTrans(view) {
+  const scene = SCENES[state.scene];
+  pendingTr = view;
+  $id('trUtter').textContent = '「' + (view.utterance || '') + '」';
+  const rows = $id('trRows');
+  rows.innerHTML = '';
+
+  const dims = view.affected_dims || [];
+  rows.appendChild(trRow('受影响维度', dims.length ? dims.join(' · ') : '（一维都没对上）'));
+
+  // 收窄了哪几维:读 view.bounds(后端算的),不在这儿重算一遍区间。
+  const narrowed = (view.bounds || []).filter(b => b.narrowed);
+  const fmtB = b => {
+    const p = scene.params.find(q => q.name === b.param);
+    const d = p ? p.decimals : 2, u = (p && p.unit) || '';
+    return b.param + ' → ' + b.lo.toFixed(d) + '~' + b.hi.toFixed(d) + u;
+  };
+  const adj = [];
+  if (narrowed.length) adj.push('搜索域收窄:' + narrowed.map(fmtB).join('、'));
+  if (view.hard_cuts) adj.push('划掉禁区 ' + view.hard_cuts + ' 块');
+  if (view.volume_cut) adj.push('可行体积剪掉 ' + (view.volume_cut * 100).toFixed(1) + '%');
+  for (const n of (view.notes || []).slice(0, 3)) adj.push(n);
+  rows.appendChild(trRow('先验调整', adj.length ? adj.join('；') : '搜索域没动 —— 这句话改的不是搜索边界'));
+
+  rows.appendChild(trRow('置信度',
+    view.confidence == null ? '没有可报的置信度（这句话没编出先验）'
+      : (view.confidence * 100).toFixed(0) + '% —— 先验强度按它打折'));
+
+  // 停靠行。放最后、单独染色 —— 它是这张卡最该被看见的一行。
+  for (const p of (view.parked || [])) {
+    rows.appendChild(trRow('停靠', '「' + p.fragment + '」' + p.reason, 'tr-park'));
+  }
+  // 否决 / 降级也照实摆出来。这几栏空着是好事,但**有内容时不许折叠**。
+  for (const r of (view.rejected || [])) {
+    rows.appendChild(trRow('拒收', (r.reason || String(r)), 'tr-park'));
+  }
+  for (const d of (view.downgraded || [])) {
+    rows.appendChild(trRow('降级', (d.reason || String(d)), 'tr-park'));
+  }
+
+  // 这一行写清"这次是谁翻的"。降级发生了就说 —— 徽章说的是引擎在哪,这行说的
+  // 是这一句话走了哪条路,两件事不一样。
+  const eng = {
+    llm: 'LLM 翻译 · 确定性编译器编成 IR',
+    rule: '规则引擎翻译(LLM 超时或未配置)· 同一个编译器编成 IR',
+    card: '预制卡直接命中,不走 LLM',
+    'local-card': '断网兜底:按维度重合借用了一张已编译卡的先验',
+    'local-park': '断网兜底:没有可借的已编译先验,整句停靠',
+  }[view.engine] || ('翻译引擎:' + (view.engine || '未知'));
+  $id('trEngine').textContent = eng
+    + (view.llm_model ? ' · ' + view.llm_model : '')
+    + (view.fallback_reason ? ' · ' + view.fallback_reason : '');
+
+  // 编不出先验就不给注入 —— 一个空先验注进去会跑出一条和裸跑一样的曲线,
+  // 而屏幕上写着"已注入您的经验",那是最坏的一种误导。
+  const runnable = !!(view.ir && (view.ir.mean_terms || []).length)
+    || !!(view.ir && (view.ir.exclusions || []).length)
+    || !!(view.ir && (view.ir.bounds || []).length && narrowed.length);
+  $id('trInject').disabled = !runnable;
+  $id('trInject').textContent = runnable ? '注入这句话' : '这句话编不出先验';
+  $id('trans').classList.remove('hidden');
+}
+
+/* 把翻译结果做成一张**和预制卡同形状**的卡,再交给 playAct ——
+ * 现场输入和抽卡走的是同一条回放/结算路径。给自由输入另开一条路,就等于给
+ * 结算开第二个口径,而"演示必须真跑"和"两处数必须一致"是同一条红线。 */
+function injectTrans(view) {
+  const card = {
+    id: 'said',
+    kind: 'good',
+    text: view.utterance || '（现场输入）',
+    why: view.rationale || '',
+    speaksTo: [],          // 现场输入不认领任何红线:废品分账按总数记,不白领
+    narration: null,
+    notes: view.notes || [],
+    parked: view.parked || [],
+    audit: {
+      affected_dims: view.affected_dims || [],
+      volume_cut: view.volume_cut || 0,
+      hard_cuts: view.hard_cuts || 0,
+    },
+    ir: view.ir,
+    prior: priorFromIR(view.ir),
+    said: true,            // 三方对照页据此说清"现场输入没有打乱版"
+  };
+  $id('trans').classList.add('hidden');
+  $id('sayStatus').textContent = '已注入 —— 正在实跑经验田';
+  $id('sayStatus').className = 'say-status';
+  playAct(card);
+}
+
+async function onSay() {
+  const text = $id('sayInput').value.trim();
+  const st = $id('sayStatus');
+  if (!text) { st.className = 'say-status'; st.textContent = '先说一句 —— 例:温度低的时候别上大倍率,容易析锂'; return; }
+  if (state.playing) return;
+  const btn = $id('sayBtn');
+  btn.disabled = true;
+  st.className = 'say-status';
+  st.textContent = API.mode === 'server' ? '正在翻译 …' : '本地兜底翻译 …';
+  try {
+    const view = await API.translate(SCENES[state.scene], text, {
+      // 等 LLM 的秒数报在画面上。"在算"和"卡死"必须分得开 —— 没有这个数,
+      // 台下每一秒沉默都会被读成故障。
+      onTick: s => { st.textContent = '正在翻译 … 已等 ' + s + ' 秒(超时会自动落规则引擎)'; },
+    });
+    st.className = 'say-status' + (String(view.engine || '').indexOf('local') === 0
+      || view.engine === 'rule' ? ' say-rule' : '');
+    st.textContent = view.fallback_reason
+      ? '翻译完成(' + view.fallback_reason + ')'
+      : '翻译完成 —— 请过一眼这张卡,再决定要不要注入';
+    renderTrans(view);
+  } catch (e) {
+    // api.js 保证抛出来的都是**已经翻成中文**的一句话。裸 fetch 错误永远不上屏。
+    st.className = 'say-status say-err';
+    st.textContent = (e && e.message) || '翻译没成功,可以先抽一张经验卡演示';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------- 「没听懂?问它」 ----------
+ * 这是 LLM 唯一进演示的地方,而且在**结算之后** —— 主链路上绝不等 LLM。
+ * 超时落 FAQ 缓存,再不行就说"这个问题留给答辩环节"。永不白屏、永不编数。
+ *
+ * 喂给它的 context 只有**结构化事实**(这一轮的批次历史摘要 + 先验 notes),
+ * 不是自由文本。这条边界写在 explain.py 的 prompt 里,这儿的字段形状就是那份
+ * 契约的另一半。 */
+function askContext() {
+  const scene = SCENES[state.scene];
+  const h = state.history || {};
+  const brief = run => (run ? {
+    n_batches: run.nBatches, scrapped: run.scrapped,
+    true_best: Number(run.trueBest.toFixed(3)),
+    stopped_by: run.stoppedBy,
+  } : null);
+  return {
+    scene: scene.id,
+    card: state.card ? { text: state.card.text, notes: state.card.notes || [] } : null,
+    baseline: brief(h.baseline),
+    injected: brief(h.injected),
+    seeds: SETTLE_SEEDS,
+  };
+}
+
+async function onAsk() {
+  const q = $id('askInput').value.trim();
+  const out = $id('askAnswer');
+  if (!q) return;
+  const btn = $id('askBtn');
+  btn.disabled = true;
+  out.classList.remove('hidden', 'ask-fallback');
+  out.textContent = API.mode === 'server' ? '正在问 …' : '本地 FAQ 检索 …';
+  try {
+    const r = await API.explain(state.scene, q, askContext(), {
+      onTick: s => { out.textContent = '正在问 … 已等 ' + s + ' 秒'; },
+    });
+    out.textContent = r.answer;
+    out.classList.toggle('ask-fallback', r.source !== 'llm');
+    const src = document.createElement('span');
+    src.className = 'ask-src';
+    src.textContent = {
+      llm: 'LLM 现答 · 只解释已发生的数据',
+      faq: '预备答案(FAQ 缓存)',
+      fallback: '没有命中的预备答案',
+    }[r.source] || ('来源:' + r.source);
+    if (r.llm_reason) src.textContent += ' · ' + r.llm_reason;
+    out.appendChild(src);
+  } catch (e) {
+    out.classList.add('ask-fallback');
+    out.textContent = (e && e.message) || '这个问题留给答辩环节。';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------- 旁证页的开合 ----------
+ * 三个页面都是**答辩子页**,不在 60 秒主链路上。开合只做 class 切换 ——
+ * 打开慢演/三方时不重跑主链路的任何东西(慢演读 history[i],三方只现跑打乱
+ * 那一条),所以它们不会改变屏幕上已经给出的数。 */
+/* **先揭开,再渲染。** 顺序反了会静静地毁掉一整页:`.hidden` 是 display:none,
+ * 里面的 canvas clientWidth/clientHeight 都是 0,于是 abDraw 把 backing store
+ * 设成 0×0 —— 三条曲线画进一块零像素的画布,而表格照旧填满(它不需要布局)。
+ * 屏幕上就是"有数、有表、没有图",实测过一次:canvas {w:0, h:0, cssW:282}。
+ * 这类 bug 不报错、不进 console,只是那页最重要的东西不见了。 */
+function openPage(id, render) {
+  $id(id).classList.remove('hidden');
+  if (render) render();
+}
+
+function closeAllPages() {
+  for (const id of ['calib', 'slow', 'ab', 'about', 'trans']) {
+    const el = $id(id);
+    if (el) el.classList.add('hidden');
+  }
+}
+
 /* ---------- 重置 ---------- */
 function resetAll() {
   state.playing = false; state.card = null; state.phase = 'idle';
   state.pkPoint = null;
+  // 上一张卡的结算读数必须一起清掉。留着它,口吻开关会拿旧读数重画那句结算词
+  // —— 而屏幕上已经是新一轮了。这跟追问框每次结算清空是同一条纪律:
+  // 两样都是真的,只是不配对,而这是最难被发现的一种错。
+  state.lastSettle = null;
   clearTimeout(state.timer);
   heatShrunk = false;
   $id('settle').classList.add('hidden');
@@ -973,7 +1448,14 @@ function resetAll() {
 
 /* ---------- boot ---------- */
 function boot() {
-  document.body.insertAdjacentHTML('beforeend', document.getElementById('tpl-main').innerHTML);
+  // 注进 #app,不是 body。原来是 insertAdjacentHTML 到 body 末尾,于是全站
+  // 唯一那条居中规则(style.css 的 `#app { max-width:1240px; margin:0 auto }`)
+  // 套在一个**空 div** 上:#app 白占 78px 的 padding,而 topbar/heatwrap/arena
+  // 全成了它的兄弟节点,在 1440 视口下摊到 1425px 满宽。ref1/ref3 的构图是
+  // 居中一栏、两侧留暗场,满宽铺开等于把那张稿的留白全吃掉。
+  // 叠层不受影响:.overlay 是 position:fixed;inset:0,而 #app 没有 transform/
+  // filter/perspective,不会给 fixed 造新的包含块。
+  document.getElementById('app').innerHTML = document.getElementById('tpl-main').innerHTML;
   document.getElementById('tpl-main').remove();
 
   document.querySelectorAll('.scene-btn').forEach(b =>
@@ -995,9 +1477,75 @@ function boot() {
     $id('calib').classList.remove('hidden');
   });
   $id('calibClose').addEventListener('click', () => $id('calib').classList.add('hidden'));
-  // 标定页是旁证不是流程,Esc 就该能退。结算页不给 Esc —— 那一下是要人读完的。
+
+  // ---------- 双口吻 ----------
+  // 切换只改 TONE 再重画那几处解说,**不重算任何数**。所以它是 0ms 的,而这
+  // 正是这个功能想说的话:同一份结果,换一种说法。
+  document.querySelectorAll('.tone-btn').forEach(b =>
+    b.addEventListener('click', () => {
+      TONE = b.dataset.tone;
+      document.querySelectorAll('.tone-btn').forEach(x =>
+        x.classList.toggle('active', x.dataset.tone === TONE));
+      // 已经在屏幕上的解说跟着换口吻。没跑过就不写 —— 别为了展示开关而编一句。
+      const scene = SCENES[state.scene];
+      const h = state.history && state.history.injected;
+      if (h && state.phase === 'settled') {
+        $id('fieldRSub').textContent = '收束 → ' + h.nBatches + ' 批,真值 '
+          + h.trueBest.toFixed(1) + scene.rewardUnit;
+      }
+      // 结算词重画。这是**开关最该动的那一句** —— 评委正盯着的就是它,而它原先
+      // 内联在 settle() 里,切一下口吻纹丝不动(实测:切换 0ms、改了 0 个字符串)。
+      // 只重拼措辞,读数一个都不重算:state.lastSettle 里存的是 v/top/harmful。
+      const ls = state.lastSettle;
+      if (ls && !$id('settle').classList.contains('hidden')) {
+        $id('setWhy').textContent =
+          settleWhy(scene, ls.v, ls.top, ls.harmful, ls.named) + ls.scrapTail;
+      }
+      if (!$id('slow').classList.contains('hidden')) renderSlow(SLOW.i);
+    }));
+
+  // ---------- 自由输入 ----------
+  $id('sayBtn').addEventListener('click', onSay);
+  // Enter 发送、Shift+Enter 换行。台上打完一句话的下一个动作一定是敲回车,
+  // 让他去找按钮是在给自己制造一次卡顿。
+  $id('sayInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSay(); }
+  });
+  $id('trCancel').addEventListener('click', () => {
+    $id('trans').classList.add('hidden');
+    pendingTr = null;
+    $id('sayStatus').textContent = '没有注入 —— 这张卡只是翻译结果,不改任何东西';
+  });
+  $id('trInject').addEventListener('click', () => {
+    if (pendingTr) injectTrans(pendingTr);
+  });
+
+  // ---------- 追问 ----------
+  $id('askBtn').addEventListener('click', onAsk);
+  $id('askInput').addEventListener('keydown', e => { if (e.key === 'Enter') onAsk(); });
+
+  // ---------- 三个旁证页 ----------
+  // 慢演每次打开都从第一批开始:进度停在上次看到的位置,会让"这是同一条轨迹"
+  // 这件事变得不明显 —— 而那正是这页唯一要说的话。
+  $id('slowBtn').addEventListener('click', () => openPage('slow', () => renderSlow(0)));
+  $id('slowClose').addEventListener('click', () => $id('slow').classList.add('hidden'));
+  $id('slowPrev').addEventListener('click', () => renderSlow(SLOW.i - 1));
+  $id('slowNext').addEventListener('click', () => renderSlow(SLOW.i + 1));
+  // 慢演页用左右箭头翻批 —— 手离开鼠标也能讲。只在这页开着时才接管方向键。
   window.addEventListener('keydown', e => {
-    if (e.key === 'Escape') $id('calib').classList.add('hidden');
+    if ($id('slow').classList.contains('hidden')) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); renderSlow(SLOW.i - 1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); renderSlow(SLOW.i + 1); }
+  });
+
+  $id('abBtn').addEventListener('click', () => openPage('ab', renderAb));
+  $id('abClose').addEventListener('click', () => $id('ab').classList.add('hidden'));
+  $id('aboutBtn').addEventListener('click', () => openPage('about', null));
+  $id('aboutClose').addEventListener('click', () => $id('about').classList.add('hidden'));
+
+  // 旁证页是旁证不是流程,Esc 就该能退。结算页不给 Esc —— 那一下是要人读完的。
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeAllPages();
   });
 
   let rT;
@@ -1006,15 +1554,22 @@ function boot() {
     rT = setTimeout(() => {
       drawHeat($id('heat'));
       if (state.history) {
-        drawCurve($id('curveL'), state.history.baseline.history, '#0f766e', SCENES[state.scene].rewardMax, 24);
-        if (state.history.injected) drawCurve($id('curveR'), state.history.injected.history, '#c2410c', SCENES[state.scene].rewardMax, 20);
+        drawCurve($id('curveL'), state.history.baseline.history, THEME.base, SCENES[state.scene].rewardMax, 24);
+        if (state.history.injected) drawCurve($id('curveR'), state.history.injected.history, THEME.xper, SCENES[state.scene].rewardMax, 20);
       }
       // 机理视窗按记住的那一批重画,不重跑 BO —— 拉窗口不该改变演示的内容。
       renderTwin(SCENES[state.scene], state.twinX);
+      // 三方对照那张图是响应式宽度,窗口一变就得重画。它读缓存好的那三条轨迹,
+      // 不重跑 BO —— 拉一下窗口不该改变演示的内容。
+      if (!$id('ab').classList.contains('hidden')) renderAb();
     }, 150);
   });
 
   loadScene('formation');
+
+  // 后端探测放**最后**,而且不 await:探不到也照旧能演,所以它没有资格挡在
+  // loadScene 前面。file:// 下 probe() 一次请求都不发,直接把徽章写成"离线"。
+  API.probe();
 }
 
 window.addEventListener('DOMContentLoaded', boot);

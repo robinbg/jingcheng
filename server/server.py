@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import cards as card_lib
+import explain as ex
 import translate as tr
 from bo import run_bo, run_pair
 from prior_dsl import compile_prior, shuffle_dims
@@ -47,6 +48,14 @@ class TranslateReq(BaseModel):
     scene: str = "formation"
     utterance: str
     card_id: Optional[str] = None
+
+
+class ExplainReq(BaseModel):
+    """context 只装结构化事实(批次历史/先验 notes),不是自由文本——
+    这条边界写进了 explain.py 的 prompt,这里的字段形状就是那份契约。"""
+    scene: str = "formation"
+    question: str
+    context: Optional[Dict[str, Any]] = None
 
 
 @app.get("/api/health")
@@ -167,6 +176,30 @@ def api_translate_poll(job_id: str) -> Dict[str, Any]:
             "translation": _card_view(s, job["scene"], spec)}
 
 
+@app.post("/api/explain")
+def api_explain(req: ExplainReq) -> Dict[str, Any]:
+    """立即返回 job_id。LLM 在后台线程跑,和 /api/translate 同一条纪律——
+    这是"追问"场景,评委等在屏幕前,HTTP handler 里更不能等慢活。"""
+    try:
+        get_scene(req.scene)
+    except KeyError:
+        raise HTTPException(404, f"未知场景 {req.scene}")
+    job_id = ex.start_job(req.scene, req.question, req.context or {})
+    return {"status": "pending", "job_id": job_id}
+
+
+@app.get("/api/explain/{job_id}")
+def api_explain_poll(job_id: str) -> Dict[str, Any]:
+    job = ex.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job 不存在或已过期")
+    if job["status"] != "done":
+        return {"status": job["status"], "elapsed": round(job.get("elapsed", 0), 1)}
+    result = job["result"]
+    return {"status": "done", "answer": result["answer"], "source": result["source"],
+            "llm_reason": result.get("llm_reason")}
+
+
 def _card_view(s: Any, scene_id: str, spec: Dict[str, Any]) -> Dict[str, Any]:
     """翻译卡:原话 → 受影响维度 → 先验调整的人话 → confidence。
 
@@ -174,6 +207,12 @@ def _card_view(s: Any, scene_id: str, spec: Dict[str, Any]) -> Dict[str, Any]:
     """
     prior = compile_prior(spec, s.space(), scene_id, s.theta["sf"])
     v = prior.summary()
+    # IR 一并带回去。**这是"一次编译、两个引擎"在自由输入这条路上的落点**:
+    # 前端要把这句话注入并当场跑 BO,而前端不许编译先验(校验/红线族授权/体积
+    # 上限/降级判断只在这一侧发生)。不带 IR 的话前端只有两条路 —— 要么自己
+    # 编一份(这个项目已经因此分叉过一次:同一张歪经卡后端否决、前端白省两批),
+    # 要么现场输入根本没法注入。所以把编译结果原样发过去,JS 那边只做算术。
+    v["ir"] = prior.to_ir()
     v["utterance"] = spec.get("utterance", "")
     v["rationale"] = spec.get("rationale", "")
     v["engine"] = spec.get("engine", "unknown")

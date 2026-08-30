@@ -25,6 +25,15 @@
         <button class="scene-btn active" data-scene="formation">磷酸铁锂 · 化成</button>
         <button class="scene-btn" data-scene="casting">压铸 · 开机</button>
       </div>
+      <!-- 口吻开关。两份字符串都在前端(narrations.js 构建物),切换 0ms、不走网络
+           —— 台上换一次口吻要是转个圈,那这个功能就不该存在。 -->
+      <div class="tone-switch" role="group" aria-label="讲解口吻">
+        <button class="tone-btn active" data-tone="pro">工艺口吻</button>
+        <button class="tone-btn" data-tone="plain">白话口吻</button>
+      </div>
+      <!-- 引擎徽章。后端在就走服务端 GP-BO,当场 kill 掉后端会自己掉回本地兜底。
+           徽章是**探测结果**,不是我们写死的一句话 —— 见 api.js。 -->
+      <span id="engineBadge" class="engine-badge eb-local"><span class="eb-dot">○</span><span id="ebText">本地兜底</span></span>
       <button id="pkToggle" class="ghost-btn">试试您的手感</button>
       <!-- ③ 标定页。放在顶栏而不是流程里:它回答的是"你这孪生凭什么算得准",
            那是评委看完之后才会问的一句 —— 不该挤在演示动线上,但必须随手可点。 -->
@@ -40,6 +49,25 @@
       但化成这道<span class="hl">最贵的工序</span>，窗口内哪一点又快又好，还锁在工程师的手感里。</p>
   </section>
 
+  <!-- 中央仪表:搜索空间。位置是刻意的 —— 这场演示卖的是"那句话让搜索空间当场
+       收缩",收缩发生在这块屏上,它必须先被看到,不能压在双田下面当页脚。
+       结算前只画迷雾(不泄题),结算时才揭底画真实响应面 —— 见 app.js drawHeat。 -->
+  <section id="heatwrap">
+    <div id="heatBar">
+      <div class="heat-title"><span class="heat-eye">◎</span> 搜索空间</div>
+      <div class="heat-note" id="heatNote">悬浮：把口诀的关键维度照亮</div>
+    </div>
+    <canvas id="heat" width="460" height="30" class="heat-canvas"></canvas>
+    <!-- 图例。语义分工写在图上,免得台上要用嘴解释配色:
+         蓝=价值高地 / 深红=风险区 / 白虚线=可行域边界 / 黄点=当前最优 -->
+    <div class="heat-legend">
+      <span><i class="hl-good"></i>价值高地</span>
+      <span><i class="hl-risk"></i>红线风险区</span>
+      <span><i class="hl-edge"></i>可行域边界</span>
+      <span><i class="hl-best"></i>当前最优</span>
+    </div>
+  </section>
+
   <!-- ARENA -->
   <main id="arena">
 
@@ -48,7 +76,13 @@
       <header class="field-head">
         <div>
           <h2 class="field-title"><span class="dot dot-l"></span>基准田 <span class="tag unsel">无经验</span></h2>
-          <p class="field-sub">BO 在整张窗户上找，25 个节点</p>
+          <!-- 原来这行写的是"BO 在整张窗户上找，25 个节点"。两处都得改:
+               "BO" 是英文术语,§5A 明写主链路上不出现;而"25 个节点"**在代码里
+               找不到出处** —— 候选池是 poolOf 的 220 个采样,基准田的批次预算是
+               24,没有任何一处产生 25。这和之前那行"存档 · 今早 9:02 实跑"是
+               同一类毛病:屏幕上摆一个编出来的数,一被追问就得当场承认。
+               照实说基准田在做什么:没有那句话,五维原始窗口全得自己试。 -->
+          <p class="field-sub">没有那句话，整张工艺窗口都得自己试</p>
         </div>
         <!-- 这里原先写的是"存档 · 今早 9:02 实跑"。那是编的:基准田是 loadScene
              里当场裸跑的(runBO,毫秒级),没有任何存档,更没有 9:02 那一次。
@@ -70,7 +104,10 @@
           <h2 class="field-title"><span class="dot dot-r"></span>经验田 <span class="tag sel">注入口诀</span></h2>
           <p class="field-sub" id="fieldRSub">正在实跑 …</p>
         </div>
-        <div class="run-badge live">LIVE</div>
+        <!-- 原来这枚徽章写的是 "LIVE"。§5A 主链路上不出现英文术语,而且左边那枚
+             是中文("当场裸跑 · 同种子对照"),两枚并排一中一英本身就不齐。
+             念成中文之后,它和左边那枚正好是一对读法。 -->
+        <div class="run-badge live">注入这句话后 · 当场实跑</div>
       </header>
       <canvas id="curveR" width="46" height="20" class="curve"></canvas>
       <!-- 机理视窗:收敛曲线是统计口吻,这块是**机理口吻**。每跑一批,画那一批
@@ -90,15 +127,6 @@
       </div>
     </section>
   </main>
-
-  <!-- HEATMAP -->
-  <section id="heatwrap">
-    <div id="heatBar">
-      <div class="heat-title"><span class="heat-eye">◎</span> 搜索空间</div>
-      <div class="heat-note" id="heatNote">悬浮：把口诀的关键维度照亮</div>
-    </div>
-    <canvas id="heat" width="460" height="30" class="heat-canvas"></canvas>
-  </section>
 
   <!-- 可信度自证:孪生当场验自己报的不确定度。
        每批的 (mu,sigma) 都是**观测前**记下的预测 → 天然留出验证集。
@@ -123,19 +151,24 @@
     <p class="cred-foot" id="credFoot">—</p>
   </section>
 
-  <!-- RED LINES -->
+  <!-- RED LINES。ref1 每条计后面挂一枚 高/中风险 标签 —— 条形长度是连续量,
+       评委读不出"这算高还是不高";标签把它离散成一句判断。
+       三条计是**静态读数**,只在逐批推进那一拍跟着换,自己不做动画(同屏单动)。 -->
   <section id="metwrap">
     <div class="meter" data-line="li">
       <span class="meter-name" id="meterLiName">析锂线</span>
       <div class="meter-bg"><div class="meter-fill" id="meterLi"></div></div>
+      <span class="meter-lv lv-lo" id="meterLiLv">—</span>
     </div>
     <div class="meter" data-line="gas">
       <span class="meter-name" id="meterGasName">产气线</span>
       <div class="meter-bg"><div class="meter-fill" id="meterGas"></div></div>
+      <span class="meter-lv lv-lo" id="meterGasLv">—</span>
     </div>
     <div class="meter" data-line="yield">
       <span class="meter-name" id="meterYieldName">首效线</span>
       <div class="meter-bg"><div class="meter-fill" id="meterYield"></div></div>
+      <span class="meter-lv lv-lo" id="meterYieldLv">—</span>
     </div>
   </section>
 
@@ -146,6 +179,24 @@
       <span class="deck-hint">抽一张念出来（卡背后是机理）</span>
     </div>
     <div class="deck-cards" id="deckCards"></div>
+  </section>
+
+  <!-- 自由输入。抽卡是安全牌 —— 九张卡的先验都是预编译好的构建物,评委完全
+       有理由怀疑"你们只是排练了九句话"。这个框是唯一能回答那句话的东西:
+       现场随口一句,后端当场编译,接不住的部分显式停靠。
+       所以它在主舞台上、不藏在叠层里。file:// 下没有后端,走本地关键词规则
+       翻译器(engine 显示"规则引擎") —— 降级也照旧能演。 -->
+  <section id="sayline">
+    <div class="say-head">
+      <span class="say-label">说一句您自己的经验</span>
+      <span class="say-hint">现场随口说 —— 接得住的编成先验,接不住的当场停靠,不假装全懂</span>
+    </div>
+    <div class="say-row">
+      <textarea id="sayInput" rows="1" maxlength="120"
+        placeholder="例：温度低的时候别上大倍率，容易析锂"></textarea>
+      <button class="primary-btn" id="sayBtn">翻译</button>
+    </div>
+    <p class="say-status" id="sayStatus"></p>
   </section>
 
   <!-- 同题对照:一次直觉 vs 一轮搜索。三方同 oracle 真值,亮牌才揭数值 -->
@@ -172,6 +223,16 @@
     </div>
     <p class="pk-verdict" id="pkVerdict">—</p>
   </section>
+
+  <!-- 底部导航:三个旁证页的入口。它们是**答辩子页**,不在 60 秒主链路上 ——
+       放页脚就是这个意思:主链路走完了、评委开始问了,才往这儿点。 -->
+  <nav id="footnav">
+    <span class="fn-label">旁证</span>
+    <button class="fn-btn" id="slowBtn">慢演一遍</button>
+    <button class="fn-btn" id="abBtn">三方对照</button>
+    <button class="fn-btn" id="aboutBtn">关于</button>
+    <span class="fn-spacer"></span>
+  </nav>
 
   <!-- ③ 标定页「孪生从哪来」。静态叠层,打开时当场跑一遍特征自检。
        三段的顺序就是论证顺序:规律出自哪里 → 我们的孪生真的有这些特征吗 →
@@ -209,6 +270,22 @@
     </div>
   </div>
 
+  <!-- 翻译卡弹层。四行是刻意的上限:原话 → 受影响维度 → 先验调整的人话 →
+       置信度(有停靠再加一行)。评委在台下能读完的信息量就这么多。
+       底下那行 engine 写清这次是 LLM 翻的还是规则引擎翻的 —— 降级发生了就说。 -->
+  <div id="trans" class="overlay hidden">
+    <div class="tr-sheet">
+      <p class="tr-kicker">现场翻译</p>
+      <p class="tr-utter" id="trUtter">—</p>
+      <div class="tr-rows" id="trRows"></div>
+      <p class="tr-engine" id="trEngine">—</p>
+      <div class="tr-actions">
+        <button class="ghost-btn" id="trCancel">不注入</button>
+        <button class="primary-btn" id="trInject">注入这句话</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SETTLEMENT OVERLAY -->
   <div id="settle" class="overlay hidden">
     <div class="sheet">
@@ -217,10 +294,163 @@
       <p class="settle-line-2" id="setWhy">这条经验，让 AI 少试了这 12 个批次</p>
       <p class="settle-value" id="setMoney">—</p>
       <p class="settle-foot" id="setFoot">一个批次 = 一托电芯 + 化成柜占用数天</p>
+      <!-- 四条增益轴 + 一条折扣轴的**读数**。只报读数,不报权重 ——
+           权重就是评分公式,公式属于台后(§5A 台前/台后纪律)。 -->
+      <div class="settle-axes" id="setAxes"></div>
+      <!-- 两条对照条:批次与废品。大字讲一条轴,这里给出可以自己对的两个量。 -->
+      <div class="settle-bars" id="setBars"></div>
+      <!-- 「没听懂?问它」。这一格是 LLM 唯一进演示的地方,而且在**结算之后** ——
+           主链路上绝不等 LLM。超时落 FAQ 缓存,再不行就说"留给答辩环节"。 -->
+      <div class="settle-ask">
+        <input id="askInput" type="text" maxlength="80" placeholder="没听懂？问它 —— 例：为什么这句话能省批次？">
+        <button class="ghost-btn" id="askBtn">问</button>
+      </div>
+      <p class="ask-answer hidden" id="askAnswer"></p>
       <div class="settle-actions">
         <button class="ghost-btn" id="settleAgain">再演一次</button>
         <button class="primary-btn" id="settleClose">收好</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 慢演模式。主链路是 60 秒、一拍 260ms,评委只看得见"在快速试" ——
+       这页把同一条轨迹按批停下来:上一轮 → 本轮的参数怎么动的、为什么动、
+       这一批撞没撞线。数据全部读 history[i](mu/sigma/ei/risks),不另算一份。 -->
+  <div id="slow" class="overlay hidden">
+    <div class="calib-sheet">
+      <header class="calib-head">
+        <div>
+          <p class="calib-kicker">慢演一遍</p>
+          <h2 class="calib-title">同一条轨迹，按批停下来看<span id="slowScene"></span></h2>
+        </div>
+        <button class="ghost-btn" id="slowClose">收好</button>
+      </header>
+
+      <div class="step-head">
+        <span class="step-counter"><span id="slowNow">—</span><span class="sc-tot" id="slowTot">/—</span></span>
+        <div class="step-bar"><div class="step-bar-fill" id="slowBar"></div></div>
+        <div class="step-nav">
+          <button class="ghost-btn" id="slowPrev">← 上一批</button>
+          <button class="ghost-btn" id="slowNext">下一批 →</button>
+        </div>
+      </div>
+
+      <section class="calib-sec">
+        <h3 class="calib-h">上一批 → 本批</h3>
+        <div class="step-delta">
+          <div class="sd-col"><p class="sd-cap">上一批</p><div id="slowPrevBox"></div></div>
+          <div class="sd-arrow">→</div>
+          <div class="sd-col sd-now"><p class="sd-cap">本批</p><div id="slowNowBox"></div></div>
+        </div>
+      </section>
+
+      <section class="calib-sec">
+        <h3 class="calib-h">这一批的参数落在哪</h3>
+        <p class="calib-p">灰条是原始工艺窗口,玫红段是这句话收窄后的搜索域,圆点是这一批真的取的值。
+          <strong>五维都画</strong> —— 热力图只画两维,余下三维只在这儿看得见。</p>
+        <div class="pstrip" id="slowParams"></div>
+      </section>
+
+      <section class="calib-sec">
+        <h3 class="calib-h">本轮推理</h3>
+        <p class="calib-p">四步都是这一批<strong>实际算过的数</strong>:观测前的预测均值与不确定度、
+          采集函数给的收益、可行性判定、以及这批读数把最优推到了哪。不是事后编的解说。</p>
+        <ol class="reason-list" id="slowReason"></ol>
+      </section>
+
+      <!-- 三条红线的逐批读数。主舞台上这三条计是**静态**的(同屏单动:回放那 3 秒
+           里在动的是收敛曲线,不能让仪表跟着抖),所以"这一批离线有多近"这件事
+           在主链路上其实看不见 —— 它只能在这页看。这里是手动步进,不是动画,
+           逐批换读数正是这页的用处。
+           阈值不在这儿判:调 app.js 的 riskLevels/riskLabel,与主舞台同一套。 -->
+      <section class="calib-sec">
+        <h3 class="calib-h">这一批离三条红线有多近</h3>
+        <p class="calib-p">读数由这一批的参数当场算出,<strong>不是预测</strong>。前两条是风险,
+          条越长越危险;末一条是达标度,反过来,越长越好 —— 所以它们的标签不共用一套念法。</p>
+        <div id="slowMeters"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- 三方对照(消融)。这页回答的是最难的一问:"你怎么证明省批次是**翻译**的功劳,
+       不是随便加个先验都能省?" 答案是拿同一句话的**维度打乱版**当第三条曲线 ——
+       同样的强度、同样的 op、只是接到了错的维度上。
+       打乱那份 IR 由 server/export_ir.py 用 prior_dsl.shuffle_dims 导出(与
+       test_align.py 的 test_ablation 同一个函数同一颗种子),所以 file:// 下也能真跑。 -->
+  <div id="ab" class="overlay hidden">
+    <div class="calib-sheet">
+      <header class="calib-head">
+        <div>
+          <p class="calib-kicker">三方对照 · 消融</p>
+          <h2 class="calib-title">是翻译在起作用，还是随便一个先验都行<span id="abScene"></span></h2>
+        </div>
+        <button class="ghost-btn" id="abClose">收好</button>
+      </header>
+
+      <section class="calib-sec">
+        <p class="calib-p">三条曲线同一个沙盘、同一个优化器、<strong>同一组种子</strong>。
+          差别只有先验:真翻译 / 无先验裸跑 / 把同一句话的强度接到<strong>错的维度</strong>上。
+          第三条是关键 —— 它证明起作用的是"接对了维度",不是"加了个先验"。</p>
+        <div class="ab-canvas-wrap"><canvas id="abCanvas"></canvas></div>
+        <div class="ab-legend">
+          <span><i class="abl-inj"></i>真翻译</span>
+          <span><i class="abl-bare"></i>无先验裸跑</span>
+          <span><i class="abl-shuf"></i>维度打乱(同强度，错维度)</span>
+        </div>
+        <table class="ab-table" id="abTable"></table>
+        <p class="ab-note" id="abNote">—</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- 关于。四个编号段落 + 团队口径行。这页只写能兑现的话:口径、边界、不做什么。 -->
+  <div id="about" class="overlay hidden">
+    <div class="calib-sheet">
+      <header class="calib-head">
+        <div>
+          <p class="calib-kicker">关于</p>
+          <h2 class="calib-title">这套东西是什么、不是什么</h2>
+        </div>
+        <button class="ghost-btn" id="aboutClose">收好</button>
+      </header>
+
+      <section class="about-sec">
+        <h3 class="about-h"><span class="ah-n">01</span>一句人话 → 一份可审计的先验</h3>
+        <p class="about-p">口诀先翻成一份结构化的先验规格,再由<strong>确定性编译器</strong>编成中间表示。
+          翻译层只能在封闭的接口清单里选:均值项、硬剪除、观测噪声项、评估成本项、伪观测、
+          长度尺度、坐标校准、置信度,以及接不住时的<strong>显式停靠</strong>。
+          它不看响应面、不碰目标函数、不提候选点 —— 否则整个演示就是循环论证。</p>
+      </section>
+
+      <section class="about-sec">
+        <h3 class="about-h"><span class="ah-n">02</span>一次编译，两个引擎解释同一份数据</h3>
+        <p class="about-p">校验、红线族授权、可行域体积上限(单句最多剪 40%)、降级记录
+          <strong>全部只在编译期</strong>发生;浏览器这一侧只做算术,没有权限做判断。
+          这条结构是修一个真 bug 修出来的:前端曾手写过第二份先验,和后端编译结果悄悄分叉 ——
+          同一张歪经卡,后端否决,前端却算成全场最省批次。</p>
+      </section>
+
+      <section class="about-sec">
+        <h3 class="about-h"><span class="ah-n">03</span>称量，不是服从</h3>
+        <p class="about-p">四条增益轴 + 一条折扣 + 两条否决权,单位是"批次等价",乘一次单批成本就是钱。
+          四条轴是必要的:安全类的话省的是废品;观测类的话既不省批次也不省废品,
+          它省的是把一个虚高结果发上产线的那次事故;校准类的话不改响应面也不改搜索域,
+          它保证的是"你以为设了 200,工件真拿到 200"。<strong>漏一条轴,就等于用评分表宣布那一类经验没用。</strong>
+          账按 <code>16</code> 个种子的均值算,不按台上那一轮 —— 演的是一轮,判的是分布。</p>
+      </section>
+
+      <section class="about-sec">
+        <h3 class="about-h"><span class="ah-n">04</span>孪生是什么，不是什么</h3>
+        <p class="about-p"><strong>不做</strong>电化学仿真(P2D / 纽曼模型明确不做)。
+          它是公开定性机理规则 + 公开量级估算的<strong>合成数据生成器</strong>,当前版本
+          <strong>无实测数据参与</strong>,标定页上每个数都能追到骨架表里的某个函数。
+          边界也写在前面:只面向过程状态可测的工序 —— 发酵这类核心状态不可观测的工艺现阶段不做,
+          沙盘造出来对客户不诚实。<strong>不把任何文献曲线叠到我们的曲线上</strong>做"拟合得很好"的暗示。</p>
+      </section>
+
+      <p class="about-terms">全部区间与量级为<strong>公开文献典型范围 + 演示标定</strong>,
+        无任何企业实际数据;PoC 阶段由客户产线数据校准。
+        优化方法为公开学术方法族(高斯过程代理、受约束贝叶斯优化),由团队自行实现。</p>
     </div>
   </div>
 </template>
@@ -229,12 +459,28 @@
      卡片先验的唯一来源:Python 编译一次,后端和 engine.js 解释同一份数据。
      用 <script> 而不是 fetch,是为了 file:// 双击也能演 —— 断网兜底的最后一层。 -->
 <script src="priors_ir.js"></script>
+<!-- narrations.js 也是构建物(server/export_narrations.py 从 cache/narrations.json
+     生成)。双口吻的两份字符串必须在**前端**,切换才可能是 0ms —— 走一次网络就
+     等于告诉评委"换口吻要重新算",而它其实什么都没重算。 -->
+<script src="narrations.js"></script>
+<!-- faq.js 同样是构建物(server/export_faq.py 从 explain.py + translate.py 生成)。
+     装两样断网兜底用的**文字资料**:追问的 FAQ、判断"这句话说的是哪几维"的
+     词表。前端拿到词表也编不出先验 —— 编译只在 Python 那一侧。 -->
+<script src="faq.js"></script>
 <script src="engine.js"></script>
 <script src="twin.js"></script>
 <script src="scenarios.js"></script>
 <!-- calib.js 在 app.js 之前:它只定义常量与自检函数,由 app.js 里的按钮调用。
      它引用 SCENES / $id,那两个在 app.js 里 —— 但引用发生在点击时,不在加载时。 -->
 <script src="calib.js"></script>
+<!-- api.js:后端探测 + 双模适配器。**只在非 file:// 下探测** —— 双击演示时它
+     一次网络请求都不发,直接报"本地兜底"。断网兜底是这个作品的最后一层降级,
+     不能为了后端联通把它牺牲掉。 -->
+<script src="api.js"></script>
 <script src="app.js"></script>
+<!-- 三个旁证页的渲染。都只读 app.js 已经算出来的 state/history,自己不跑 BO
+     (三方对照那页例外:它要跑打乱先验那一条,用的是 priors_ir.js 里导出的
+     ir_shuffled,不在前端做任何编译)。 -->
+<script src="pages.js"></script>
 </body>
 </html>

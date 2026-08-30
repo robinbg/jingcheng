@@ -155,7 +155,8 @@ function drawTwin(canvas, x, scene, label) {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, cssW, cssH);
 
-  g.fillStyle = '#2a3033';            // 与热力图同底色 —— 同一块仪表屏
+  // 屏底与热力图/仪表同一个值,取 app.js 的 THEME(运行时才求值,加载顺序无关)
+  g.fillStyle = THEME.screen;
   g.fillRect(0, 0, cssW, cssH);
 
   const padL = 30, padR = 26, padT = 9, padB = 15;
@@ -166,7 +167,7 @@ function drawTwin(canvas, x, scene, label) {
   const pi = i => padT + (1 - i / TWIN_IMAX) * h;
 
   if (!x) {
-    g.fillStyle = 'rgba(200,196,184,.5)';
+    g.fillStyle = 'rgba(186,198,213,.5)';
     g.font = '10.5px system-ui'; g.textAlign = 'center';
     g.fillText('等一张经验卡 —— 每跑一批,这里画那一批的充电曲线', cssW / 2, cssH / 2 + 3);
     return;
@@ -178,35 +179,35 @@ function drawTwin(canvas, x, scene, label) {
   // 按比例画出来不到一个像素,而那恰恰是最该被看见的一批。
   if (c.plating) {
     const x0 = px(c.preSpan.from), x1 = Math.max(px(c.preSpan.to), x0 + 2);
-    g.fillStyle = 'rgba(185,28,28,.28)';
+    g.fillStyle = 'rgba(146,47,55,.42)';
     g.fillRect(x0, padT, x1 - x0, h);
   }
 
   // 3.65V 截止线 + 3.26V 平台线。两条参考线是"读图的坐标",不是装饰:
   // 没有它们,那条平台看起来只是一段随便的斜线。
   g.setLineDash([3, 3]); g.lineWidth = 1;
-  g.strokeStyle = 'rgba(235,232,220,.30)';
+  g.strokeStyle = 'rgba(186,198,213,.26)';
   for (const [v, txt] of [[TWIN_VCUT, '3.65'], [3.26, '3.26']]) {
     g.beginPath(); g.moveTo(padL, py(v)); g.lineTo(padL + w, py(v)); g.stroke();
-    g.fillStyle = 'rgba(235,232,220,.55)';
+    g.fillStyle = 'rgba(186,198,213,.55)';
     g.font = '8.5px "SF Mono", ui-monospace, monospace';
     g.textAlign = 'right'; g.fillText(txt, padL - 3, py(v) + 3);
   }
   g.setLineDash([]);
 
   // 电流(副轴,虚线)
-  g.strokeStyle = 'rgba(94,234,212,.75)'; g.lineWidth = 1.3;
+  g.strokeStyle = 'rgba(42,107,255,.85)'; g.lineWidth = 1.3;
   g.setLineDash([4, 3]); g.beginPath();
   c.pts.forEach((p, n) => { const X = px(p.t), Y = pi(p.i); n ? g.lineTo(X, Y) : g.moveTo(X, Y); });
   g.stroke(); g.setLineDash([]);
 
   // 电压(主轴,实线)
-  g.strokeStyle = '#fbbf24'; g.lineWidth = 1.9; g.beginPath();
+  g.strokeStyle = THEME.gold; g.lineWidth = 1.9; g.beginPath();
   c.pts.forEach((p, n) => { const X = px(p.t), Y = py(p.v); n ? g.lineTo(X, Y) : g.moveTo(X, Y); });
   g.stroke();
 
   // 切换点 / 转恒压点。两个工艺事件,标出来才知道三段是怎么分的。
-  for (const [ev, col] of [[c.swAt, '#e8e4d8'], [c.cvAt, '#fbbf24']]) {
+  for (const [ev, col] of [[c.swAt, THEME.ink1], [c.cvAt, THEME.gold]]) {
     if (!ev) continue;
     g.fillStyle = col; g.beginPath();
     g.arc(px(ev.t), py(ev.v), 2.2, 0, Math.PI * 2); g.fill();
@@ -221,11 +222,11 @@ function drawTwin(canvas, x, scene, label) {
   if (c.plating) {
     const tm = (c.preSpan.from + c.preSpan.to) / 2;
     const X = Math.max(px(tm), padL + 1);
-    g.strokeStyle = 'rgba(248,113,113,.85)'; g.lineWidth = 1.4;
+    g.strokeStyle = 'rgba(226,86,95,.9)'; g.lineWidth = 1.4;
     g.beginPath(); g.moveTo(X, padT); g.lineTo(X, padT + h); g.stroke();
 
     const vm = c.pts.length ? c.pts[0].v : 3.1;
-    g.fillStyle = '#f87171';
+    g.fillStyle = THEME.li;
     g.beginPath(); g.arc(X, py(vm), 3.2, 0, Math.PI * 2); g.fill();
 
     // 角标压在图内顶部,不挤出画布 —— 窄预充段时引线在最左边,标签左对齐。
@@ -233,22 +234,22 @@ function drawTwin(canvas, x, scene, label) {
     g.font = '8.5px "SF Mono", ui-monospace, monospace';
     const tw = g.measureText(tag).width + 8;
     const tx = Math.min(X + 4, padL + w - tw);
-    g.fillStyle = 'rgba(185,28,28,.85)';
+    g.fillStyle = 'rgba(146,47,55,.92)';
     g.fillRect(tx, padT + 1, tw, 12);
-    g.fillStyle = '#fee2e2'; g.textAlign = 'left';
+    g.fillStyle = '#FFE8EA'; g.textAlign = 'left';
     g.fillText(tag, tx + 4, padT + 10);
   }
 
   // 图外收工:横轴固定 18h,画不完的批次要在右边缘明说,不能悄悄截断。
   if (c.overrun) {
-    g.fillStyle = 'rgba(248,113,113,.9)';
+    g.fillStyle = 'rgba(226,86,95,.95)';
     g.font = '8.5px "SF Mono", ui-monospace, monospace'; g.textAlign = 'right';
     g.fillText('未完 →', padL + w, padT + 8);
   }
 
   // 角注:一行读数。这一批的工艺事实,不是形容词。
   g.font = '9px "SF Mono", ui-monospace, monospace'; g.textAlign = 'left';
-  g.fillStyle = 'rgba(235,232,220,.72)';
+  g.fillStyle = 'rgba(186,198,213,.78)';
   const pre = x[0], T = x[1];
   const bits = [
     `${pre.toFixed(2)}C/${T.toFixed(0)}℃`,
@@ -260,7 +261,7 @@ function drawTwin(canvas, x, scene, label) {
   g.fillText(bits.join(' · '), padL, cssH - 4);
 
   // 右下角永远写"定性":这条线是机理规则的可视化,不是实测数据。
-  g.textAlign = 'right'; g.fillStyle = 'rgba(235,232,220,.42)';
+  g.textAlign = 'right'; g.fillStyle = 'rgba(124,140,160,.85)';
   g.fillText(label || '定性机理 · 非实测', padL + w, cssH - 4);
 }
 
