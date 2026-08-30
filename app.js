@@ -1360,20 +1360,30 @@ async function onSay() {
  * 不是自由文本。这条边界写在 explain.py 的 prompt 里,这儿的字段形状就是那份
  * 契约的另一半。 */
 function askContext() {
-  const scene = SCENES[state.scene];
   const h = state.history || {};
-  const brief = run => (run ? {
-    n_batches: run.nBatches, scrapped: run.scrapped,
-    true_best: Number(run.trueBest.toFixed(3)),
-    stopped_by: run.stoppedBy,
-  } : null);
-  return {
-    scene: scene.id,
-    card: state.card ? { text: state.card.text, notes: state.card.notes || [] } : null,
-    baseline: brief(h.baseline),
-    injected: brief(h.injected),
-    seeds: SETTLE_SEEDS,
-  };
+  /* 后端 build_user_prompt 只认 context 里的 history / notes 两个字段(mechanism
+   * 由后端按场景自带)。上一版这里发的是 card / baseline / injected / seeds,
+   * 字段名对不上,后端拿到 history=[] notes=[],只能诚实答"这个数我没有" ——
+   * 那是前后端契约分叉,不是 LLM 在 mock。这一版照后端的形状发:逐批的
+   * x/y/mu/sigma/ei/feasible/risks/best_so_far,加编译先验的审计 notes。 */
+  const run = h.injected || null;
+  const history = (run && run.history ? run.history : []).map(p => ({
+    i: p.i, x: p.x.map(v => +v.toFixed(3)),
+    y: +p.y.toFixed(3), mu: +p.mu.toFixed(3), sigma: +p.sigma.toFixed(3),
+    ei: +p.ei.toFixed(4), feasible: p.feasible, risks: p.risks || {},
+    best_so_far: +p.bestSoFar.toFixed(3),
+  }));
+  const notes = (state.card && state.card.notes ? state.card.notes : []).slice();
+  /* "为什么省批次"单看经验田一条曲线看不出省没省,得和基准田并排。后端只
+   * 收一份 history(经验田),两田对照的摘要补成两条 note —— 仍是结构化事实,
+   * 不是自由文本。 */
+  const brief = r => (r
+    ? r.nBatches + ' 批收敛,推荐点真值 ' + r.trueBest.toFixed(2) + ',报废 ' + r.scrapped
+    : null);
+  const b = brief(h.baseline), g = brief(h.injected);
+  if (b) notes.push('基准田(无经验)同种子裸跑:' + b);
+  if (g) notes.push('经验田(注入口诀)实跑:' + g);
+  return { history, notes };
 }
 
 async function onAsk() {
