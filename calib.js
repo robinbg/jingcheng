@@ -314,7 +314,15 @@ function renderCalib(sceneId) {
     </li>`).join('');
   // 文本走 textContent 塞回去:卡面和函数名里有 · / 括号,拼进 HTML 迟早出事
   document.querySelectorAll('#calibSkel .ck-row').forEach((li, i) => {
-    li.querySelector('.ck-law').textContent = skel[i][0];
+    // 与 CALIB_ROUTE 同一条渲染路径:只认 ** 这一种记号,用 createTextNode
+    // 而不是 innerHTML —— 机理文案里有 · 和括号,拼进 HTML 迟早被咬一口。
+    const law = li.querySelector('.ck-law');
+    skel[i][0].split('**').forEach((seg, k) => {
+      if (k % 2 === 0) { law.appendChild(document.createTextNode(seg)); return; }
+      const b = document.createElement('strong');
+      b.textContent = seg;
+      law.appendChild(b);
+    });
     li.querySelector('.ck-where').textContent = skel[i][1];
   });
 
